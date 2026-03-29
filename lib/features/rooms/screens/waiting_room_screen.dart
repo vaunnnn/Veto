@@ -4,14 +4,15 @@ import 'package:veto/features/voting/screens/genre_selection_screen.dart';
 import 'landing_screen.dart'; 
 
 class WaitingRoomScreen extends StatelessWidget {
-  const WaitingRoomScreen({super.key});
+  final String roomCode;
+  
+  const WaitingRoomScreen({super.key, required this.roomCode});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Waiting Room"),
-        // This removes the back arrow so users have to use your "Leave" button
+        title: Text("Room: $roomCode"),
         automaticallyImplyLeading: false, 
       ),
       body: Padding(

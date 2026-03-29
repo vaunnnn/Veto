@@ -3,14 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:veto/core/themes/app_theme.dart'; 
 import 'package:veto/features/rooms/screens/landing_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
-  // Ensure Flutter is ready before loading the file
-  WidgetsFlutterBinding.ensureInitialized();
+  // 1. MUST be first
+  WidgetsFlutterBinding.ensureInitialized(); 
   
-  // Load the .env file
-  await dotenv.load(fileName: ".env");
+  // 2. Load env variables
+  await dotenv.load(fileName: ".env"); 
+
+  // 3. MUST happen before runApp
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const VetoApp());
 }
