@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 // Make sure to import your AppTheme! Adjust the path if necessary.
 import 'package:veto/core/themes/app_theme.dart'; 
 import 'package:veto/features/rooms/screens/landing_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 
-void main() {
+Future<void> main() async {
+  // Ensure Flutter is ready before loading the file
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load the .env file
+  await dotenv.load(fileName: ".env");
+
   runApp(const VetoApp());
 }
 
