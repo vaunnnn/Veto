@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
@@ -14,7 +15,9 @@ class AppTheme {
         secondary: AppColors.secondary,
         surface: AppColors.surfaceLight,
       ),
-      // Style all ElevatedButtons app-wide
+      textTheme: GoogleFonts.montserratTextTheme(ThemeData.light().textTheme),
+
+      // Style ElevatedButtons app-wide
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -24,7 +27,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30), // Pill-shaped from mockup
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
@@ -54,6 +57,8 @@ class AppTheme {
         secondary: AppColors.secondary,
         surface: AppColors.surfaceDark,
       ),
+      textTheme: GoogleFonts.montserratTextTheme(ThemeData.dark().textTheme),
+
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -63,13 +68,14 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
           ),
         ),
       ),
+
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.secondary,
