@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-// 1. Import your landing screen file here
-import 'package:veto/features/rooms/screens/landing_screen.dart'; 
+// Make sure to import your AppTheme! Adjust the path if necessary.
+import 'package:veto/core/themes/app_theme.dart'; 
+import 'package:veto/features/rooms/screens/landing_screen.dart';
+
 
 void main() {
   runApp(const VetoApp());
@@ -14,12 +16,17 @@ class VetoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Veto',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
       
-      home: const LandingScreen(), 
+      // 1. Hook up your Light Theme
+      theme: AppTheme.lightTheme,
+      
+      // 2. Hook up your Dark Theme
+      darkTheme: AppTheme.darkTheme,
+      
+      // 3. Tell Flutter how to switch between them (system default is usually best)
+      themeMode: ThemeMode.system, 
+      
+      home: const LandingScreen(),
     );
   }
 }
