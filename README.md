@@ -17,25 +17,30 @@ Instead of grouping files by their type (e.g., putting all models in one folder 
     lib/
     │
     ├── core/                   # App-wide configurations
-    │   ├── constants/          # API keys, endpoint URLs, standard UI padding
-    │   ├── theme/              # Colors, text styles, dark/light mode setup
-    │   └── utils/              # Helper functions (e.g., date formatters)
+    │   ├── constants/          # API keys, TMDB URLs, standard UI padding
+    │   ├── theme/              # Colors, typography, swipe card themes
+    │   └── utils/              # Helper functions (e.g., room code generators)
     │
-    ├── features/               # The core functionalities of your app
-    │   ├── auth/               # Everything related to signing in
-    │   │   ├── screens/        # Login/Signup UI
-    │   │   └── services/       # Auth logic (Firebase/Supabase)
+    ├── features/               # Veto's core functionalities
+    │   ├── auth/               # Headless authentication
+    │   │   └── services/       # Anonymous login logic (No screens needed!)
     │   │
-    │   ├── movies/             # Everything related to TMDB data
-    │   │   ├── models/         # Dart classes representing Movie data
-    │   │   ├── screens/        # Home screen, Movie Detail screen
-    │   │   ├── widgets/        # UI pieces specific to movies (e.g., MovieCard)
-    │   │   └── services/       # The code that actually calls the TMDB API
+    │   ├── rooms/              # Lobby and connection logic
+    │   │   ├── models/         # Room and Player data structures
+    │   │   ├── screens/        # Join/Create screen, Waiting Room screen
+    │   │   └── services/       # Real-time database syncing for room state
     │   │
-    │   └── favorites/          # Logic for saving movies to the database
+    │   ├── voting/             # The core game loop
+    │   │   ├── models/         # Movie data from TMDB
+    │   │   ├── screens/        # Genre Selection, Swipe Deck screen
+    │   │   ├── widgets/        # Tinder-style swipe cards, progress bars
+    │   │   └── services/       # TMDB API calls, real-time vote casting
+    │   │
+    │   └── resolution/         # Match results
+    │       └── screens/        # The "Match Found!" screen, re-roll options
     │
-    ├── shared/                 # Reusable UI components used across the whole app
-    │   └── widgets/            # Custom buttons, loading spinners, error dialogs
+    ├── shared/                 # Reusable UI components
+    │   └── widgets/            # Primary buttons, text inputs for room codes
     │
     └── main.dart               # The entry point that initializes the app
 
