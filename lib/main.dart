@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // 1. Import your landing screen file here
-import 'package:veto/features/rooms/screens/landing_screen.dart'; 
+import 'package:veto/features/rooms/screens/landing_screen.dart';
 
 void main() {
   runApp(const VetoApp());
@@ -19,7 +19,7 @@ class VetoApp extends StatelessWidget {
         useMaterial3: true,
       ),
       
-      home: const LandingScreen(), 
+      home: const LandingScreen(),
     );
   }
 }
