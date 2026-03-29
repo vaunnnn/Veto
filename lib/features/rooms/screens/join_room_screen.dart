@@ -1,35 +1,63 @@
 import 'package:flutter/material.dart';
 import 'waiting_room_screen.dart';
+import '../services/room_service.dart'; // Import the service
 
-class JoinRoomScreen extends StatelessWidget {
+// Change to StatefulWidget so we can handle the text input and loading state
+class JoinRoomScreen extends StatefulWidget {
   const JoinRoomScreen({super.key});
 
   @override
+  State<JoinRoomScreen> createState() => _JoinRoomScreenState();
+}
+
+class _JoinRoomScreenState extends State<JoinRoomScreen> {
+  final TextEditingController _codeController = TextEditingController();
+  final RoomService _roomService = RoomService();
+  bool _isLoading = false;
+
+  // Dummy device ID for testing
+  final String myDeviceId = "device_${DateTime.now().millisecondsSinceEpoch}";
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  void _handleJoin() async {
+    final code = _codeController.text.trim().toUpperCase();
+    if (code.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    bool success = await _roomService.joinRoom(code, myDeviceId);
+
+    setState(() => _isLoading = false);
+
+    if (success && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WaitingRoomScreen(roomCode: code),
+        ),
+      );
+    } else if (mounted) {
+      // Show an error if the room code is wrong
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid Room Code. Try again!')),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // We grab the theme data once to keep the code below clean
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
     return Scaffold(
-      // backgroundColor is handled automatically by AppTheme!
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          // colorScheme.onSurface adapts automatically to Light/Dark mode
-          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface), 
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'VETO',
-          style: textTheme.titleLarge?.copyWith(
-            color: colorScheme.primary, // Grabs AppColors.primary (Red)
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.5,
-          ),
-        ),
-        centerTitle: true,
+        // ... (Keep your existing beautiful AppBar code here)
       ),
       body: SafeArea(
         child: Column(
@@ -39,75 +67,18 @@ class JoinRoomScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Column(
                   children: [
-                    const SizedBox(height: 40),
-                    
-                    // Header Section
-                    Text(
-                      'PREMIUM ACCESS',
-                      style: textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        // FIXED: Replaced withOpacity with withValues
-                        color: colorScheme.onSurface.withValues(alpha: 0.5), 
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Enter the\nSilver Screen',
-                      textAlign: TextAlign.center,
-                      style: textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: Text(
-                        'Input your unique invite code to join the synchronized cinematic session.',
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyMedium?.copyWith(
-                          height: 1.4,
-                          // FIXED: Replaced withOpacity with withValues
-                          color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ),
+                    // ... (Keep your existing header text here)
                     const SizedBox(height: 40),
 
-                    // Input Card Section
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24.0),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface, // Uses surfaceLight or surfaceDark automatically!
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            // FIXED: Replaced withOpacity with withValues
-                            color: Colors.black.withValues(
-                                alpha: theme.brightness == Brightness.light ? 0.04 : 0.2),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
+                      // ... (Keep your existing Container decoration here)
                       child: Column(
                         children: [
-                          Text(
-                            'ACCESS CODE',
-                            style: textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                              // FIXED: Replaced withOpacity with withValues
-                              color: colorScheme.onSurface.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                          // ... (Keep your "ACCESS CODE" label)
                           
-                          // Text Field
+                          // Update the TextField to use the controller
                           TextField(
+                            controller: _codeController, // Added this!
                             textAlign: TextAlign.center,
                             textCapitalization: TextCapitalization.characters,
                             style: textTheme.titleLarge?.copyWith(
@@ -116,31 +87,20 @@ class JoinRoomScreen extends StatelessWidget {
                               color: colorScheme.primary,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'V E T O - X X X X',
-                              hintStyle: textTheme.titleLarge?.copyWith(
-                                // FIXED: Replaced withOpacity with withValues
-                                color: colorScheme.primary.withValues(alpha: 0.3),
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2.0,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 20),
+                              hintText: 'VETO-XXXX',
+                              // ... (Keep your existing decoration)
                             ),
                           ),
                           const SizedBox(height: 24),
                           
-                          // Join Room Button
+                          // Update the Join Room Button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const WaitingRoomScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text('JOIN ROOM'),
+                              onPressed: _isLoading ? null : _handleJoin,
+                              child: _isLoading 
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text('JOIN ROOM'),
                             ),
                           ),
                         ],
@@ -150,18 +110,7 @@ class JoinRoomScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
-            // Footer Text
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
-              child: Text(
-                'Lost your code? Contact the host of your session.',
-                style: textTheme.bodySmall?.copyWith(
-                  // FIXED: Replaced withOpacity with withValues
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
+            // ... (Keep your existing footer text)
           ],
         ),
       ),
