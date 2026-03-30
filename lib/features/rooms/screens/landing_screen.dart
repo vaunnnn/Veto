@@ -21,7 +21,11 @@ class LandingScreen extends StatelessWidget {
             children: [
               const Text(
                 'VETO',
-                style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, letterSpacing: 4),
+                style: TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 4,
+                ),
               ),
               const SizedBox(height: 50),
 
@@ -33,7 +37,9 @@ class LandingScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const JoinRoomScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const JoinRoomScreen(),
+                      ),
                     );
                   },
                   child: const Text('Join Room'),
@@ -49,19 +55,27 @@ class LandingScreen extends StatelessWidget {
                   // Make this async so we can wait for Firebase
                   onPressed: () async {
                     // 1. Create the room in the database
-                    String newRoomCode = await roomService.createRoom(myDeviceId);
-                    
+                    String newRoomCode = await roomService.createRoom(
+                      myDeviceId,
+                    );
+
                     // 2. Navigate to the Waiting Room and pass the code
                     if (context.mounted) {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => WaitingRoomScreen(roomCode: newRoomCode),
+                          builder: (context) => WaitingRoomScreen(
+                            roomCode: newRoomCode,
+                            isHost: true,
+                            playerDeviceId: myDeviceId, // <-- Add this!
+                          ),
                         ),
                       );
                     }
                   },
-                  child: const Text('Create Room'), // Changed text from "Go to Waiting Room"
+                  child: const Text(
+                    'Create Room',
+                  ), // Changed text from "Go to Waiting Room"
                 ),
               ),
             ],

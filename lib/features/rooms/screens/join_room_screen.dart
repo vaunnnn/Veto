@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'waiting_room_screen.dart';
-import '../services/room_service.dart'; // Import the service
+import '../services/room_service.dart';
 
-// Change to StatefulWidget so we can handle the text input and loading state
 class JoinRoomScreen extends StatefulWidget {
   const JoinRoomScreen({super.key});
 
@@ -38,11 +37,13 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => WaitingRoomScreen(roomCode: code),
+          builder: (context) => WaitingRoomScreen(
+            roomCode: code,
+            playerDeviceId: myDeviceId, // <-- Add this!
+          ),
         ),
       );
     } else if (mounted) {
-      // Show an error if the room code is wrong
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid Room Code. Try again!')),
       );
@@ -53,66 +54,299 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final textTheme = theme.textTheme;
+
+    // We use a light background to match the mockup
+    final Color bgColor = theme.brightness == Brightness.light
+        ? const Color(0xFFF8F9FA)
+        : colorScheme.surface;
 
     return Scaffold(
+      backgroundColor: bgColor,
+      // This allows the gradient to flow behind the AppBar
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        // ... (Keep your existing beautiful AppBar code here)
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'VETO',
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: colorScheme.primary, // Veto Red
+            fontWeight: FontWeight.w900,
+            fontSize: 24,
+            letterSpacing: 1.5,
+          ),
+        ),
+        centerTitle: true,
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  children: [
-                    // ... (Keep your existing header text here)
-                    const SizedBox(height: 40),
-
-                    Container(
-                      // ... (Keep your existing Container decoration here)
-                      child: Column(
-                        children: [
-                          // ... (Keep your "ACCESS CODE" label)
-                          
-                          // Update the TextField to use the controller
-                          TextField(
-                            controller: _codeController, // Added this!
-                            textAlign: TextAlign.center,
-                            textCapitalization: TextCapitalization.characters,
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 4.0,
-                              color: colorScheme.primary,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'VETO-XXXX',
-                              // ... (Keep your existing decoration)
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          
-                          // Update the Join Room Button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _handleJoin,
-                              child: _isLoading 
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text('JOIN ROOM'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+      body: Stack(
+        children: [
+          // Subtle top gradient matching the mockup
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 200,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.15),
+                    Colors.transparent,
                   ],
                 ),
               ),
             ),
-            // ... (Keep your existing footer text)
-          ],
-        ),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 30),
+
+                        // Header Section
+                        Text(
+                          'PREMIUM ACCESS',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2.0,
+                            color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Enter the\nSilver Screen',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            height: 1.1,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: Text(
+                            'Input your unique invite code to join the synchronized cinematic session.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Input Card Section
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24.0),
+                          decoration: BoxDecoration(
+                            color: theme.brightness == Brightness.light
+                                ? Colors.white
+                                : colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 24,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'ACCESS CODE',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Text Field
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: theme.brightness == Brightness.light
+                                      ? const Color(0xFFF4F4F5)
+                                      : colorScheme.surfaceContainer,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: TextField(
+                                  controller: _codeController,
+                                  textAlign: TextAlign.center,
+                                  textCapitalization:
+                                      TextCapitalization.characters,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 4.0,
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'V E T O - X X X X',
+                                    hintStyle: TextStyle(
+                                      color: colorScheme.primary.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 2.0,
+                                      fontSize: 20,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Join Room Button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 60,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  onPressed: _isLoading ? null : _handleJoin,
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 3,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'JOIN ROOM',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // "Live Now" Promo Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.brightness == Brightness.light
+                                ? const Color(0xFFF4F4F5)
+                                : colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              // Movie Poster Thumbnail
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=200&auto=format&fit=crop', // Placeholder poster
+                                  width: 60,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Promo Text
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'LIVE NOW',
+                                      style: TextStyle(
+                                        color: colorScheme.primary,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.0,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Synchronized Playback',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Join your party for real-time reactions and voting.',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface.withValues(
+                                          alpha: 0.6,
+                                        ),
+                                        fontSize: 12,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Footer Text
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
+                  child: Text(
+                    'Lost your code? Contact the host of your session.',
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.4),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
