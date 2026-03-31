@@ -14,9 +14,11 @@ Future<void> main() async {
   await dotenv.load(fileName: ".env"); 
 
   // 3. MUST happen before runApp
+  if (Firebase.apps.isEmpty) {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+}
 
   runApp(const VetoApp());
 }
