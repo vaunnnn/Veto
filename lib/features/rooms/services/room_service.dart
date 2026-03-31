@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 
 class RoomService {
-  // This is your direct connection to the Firestore database
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  // The 'get' keyword waits until the absolute last second to connect
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   // --- 1. GENERATE A PAIRING CODE ---
   String _generateRoomCode() {
