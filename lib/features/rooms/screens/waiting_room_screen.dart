@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Required for Clipboard access
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:veto/features/voting/screens/genre_selection_screen.dart';
-import 'landing_screen.dart';
+import 'package:veto/features/rooms/screens/landing_screen.dart';
 
 class WaitingRoomScreen extends StatelessWidget {
   final String roomCode;
   final bool isHost;
-  final String playerDeviceId; // We added this so the screen knows WHO to remove!
+  final String playerDeviceId; 
 
   const WaitingRoomScreen({
     super.key, 
     required this.roomCode, 
-    required this.playerDeviceId, // Now required in the constructor
+    required this.playerDeviceId, 
     this.isHost = false, 
   });
 
@@ -84,40 +85,6 @@ class WaitingRoomScreen extends StatelessWidget {
                       children: [
                         const SizedBox(height: 10),
                         
-                        Text(
-                          'CURRENT PREMIERE',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2.0,
-                            color: colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        Text(
-                          'Silver Screen',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            color: colorScheme.onSurface,
-                            height: 1.2,
-                            letterSpacing: -1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.people, color: colorScheme.primary, size: 16),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$playerCount People Waiting',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface.withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ],
-                        ),
                         const SizedBox(height: 24),
 
                         Container(
@@ -172,7 +139,25 @@ class WaitingRoomScreen extends StatelessWidget {
                                               ),
                                             ),
                                             const SizedBox(width: 12),
-                                            Icon(Icons.copy, color: colorScheme.onSurface.withValues(alpha: 0.5), size: 20),
+                                            // Make the copy icon interactive
+                                            GestureDetector(
+                                              onTap: () {
+                                                Clipboard.setData(ClipboardData(text: roomCode));
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: const Text('Room code copied!'),
+                                                    backgroundColor: colorScheme.primary,
+                                                    behavior: SnackBarBehavior.floating,
+                                                    duration: const Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              },
+                                              child: Icon(
+                                                Icons.copy, 
+                                                color: colorScheme.onSurface.withValues(alpha: 0.5), 
+                                                size: 20
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ],
@@ -183,7 +168,25 @@ class WaitingRoomScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 30),
+                        
+                        const SizedBox(height: 16), 
+
+                        Row(
+                          children: [
+                            Icon(Icons.people, color: colorScheme.primary, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$playerCount People Waiting',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        const SizedBox(height: 24), 
 
                         GridView.builder(
                           shrinkWrap: true,
@@ -260,7 +263,6 @@ class WaitingRoomScreen extends StatelessWidget {
                             side: BorderSide(color: colorScheme.onSurface.withValues(alpha: 0.1)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           ),
-                          // CHANGED: Added the async call to remove the player from Firebase
                           onPressed: () async {
                             // 1. Tell Firebase to remove this specific player from the room
                             await FirebaseFirestore.instance.collection('rooms').doc(roomCode).update({
