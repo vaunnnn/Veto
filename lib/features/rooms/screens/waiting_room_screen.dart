@@ -106,6 +106,112 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     super.dispose();
   }
 
+  // 1. A fun list of pre-made avatars
+  final List<String> availableAvatars = [
+    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1530268729831-4b0b9e170218?q=80&w=200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=200&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200&auto=format&fit=crop',
+  ];
+
+  // 2. The Pop-up Dialog
+  void _showEditProfileDialog(String currentName, String currentAvatar) {
+    String newName = currentName;
+    String newAvatar = currentAvatar;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        // StatefulBuilder allows the dialog to update instantly when you tap an avatar
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text(
+                'Edit Profile',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Display Name',
+                      ),
+                      onChanged: (value) => newName = value,
+                      controller: TextEditingController(text: currentName),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Choose Avatar',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: availableAvatars.map((url) {
+                        bool isSelected = newAvatar == url;
+                        return GestureDetector(
+                          onTap: () => setDialogState(() => newAvatar = url),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: isSelected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: CircleAvatar(
+                              backgroundImage: NetworkImage(url),
+                              radius: 25,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('CANCEL'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    // Update Firebase with the new profile using merge: true so we don't overwrite the room!
+                    await FirebaseFirestore.instance
+                        .collection('rooms')
+                        .doc(widget.roomCode)
+                        .set({
+                          'playerProfiles': {
+                            widget.playerDeviceId: {
+                              'name': newName.isEmpty ? 'Guest' : newName,
+                              'avatar': newAvatar,
+                            },
+                          },
+                        }, SetOptions(merge: true));
+
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  child: const Text('SAVE'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -304,14 +410,22 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                           itemCount:
                               playerCount, // Removed the +1 for the invite card
                           itemBuilder: (context, index) {
-                            final profile =
-                                dummyProfiles[index % dummyProfiles.length];
-
-                            // Get the actual device ID of the player for this specific card
                             final String targetDeviceId =
                                 connectedPlayers[index];
 
-                            // A much smarter way to check if this card belongs to YOU
+                            // NEW: Grab the profiles dictionary from Firebase
+                            final Map<String, dynamic> playerProfiles =
+                                data['playerProfiles'] ?? {};
+                            // NEW: Find this specific player's data, or give them a default if they haven't set one yet
+                            final Map<String, dynamic> currentProfile =
+                                playerProfiles[targetDeviceId] ??
+                                {
+                                  'name': 'Player ${index + 1}',
+                                  'avatar':
+                                      availableAvatars[index %
+                                          availableAvatars.length],
+                                };
+
                             bool isCurrentUser =
                                 targetDeviceId == widget.playerDeviceId;
                             String status = index == 2
@@ -319,12 +433,12 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                 : 'READY TO VETO';
 
                             return _buildPlayerCard(
-                              profile['name']!,
-                              profile['image']!,
+                              currentProfile['name']!, // Updated!
+                              currentProfile['avatar']!, // Updated!
                               status,
                               isCurrentUser,
-                              widget.isHost, // Pass whether YOU are the host
-                              targetDeviceId, // Pass the ID of the person on the card
+                              widget.isHost,
+                              targetDeviceId,
                               colorScheme,
                               theme.brightness,
                             );
@@ -402,6 +516,10 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                             ),
                           ),
                           onPressed: () async {
+                            // NEW: Put on earmuffs! Cancel the background listener right now
+                            // so you don't trigger your own "kicked" notification.
+                            _roomSubscription?.cancel();
+
                             // IF HOST: Delete the entire room
                             if (widget.isHost) {
                               await FirebaseFirestore.instance
@@ -579,10 +697,14 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                   ),
                 ),
                 if (isYou)
-                  Icon(
-                    Icons.edit,
-                    size: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  GestureDetector(
+                    // Calls our new pop-up and passes in their current name/avatar
+                    onTap: () => _showEditProfileDialog(name, imageUrl),
+                    child: Icon(
+                      Icons.edit,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
                   ),
               ],
             ),
