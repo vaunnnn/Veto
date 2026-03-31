@@ -529,14 +529,10 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                             }
                             // IF GUEST: Just remove yourself
                             else {
-                              await FirebaseFirestore.instance
-                                  .collection('rooms')
-                                  .doc(widget.roomCode)
-                                  .update({
-                                    'connectedPlayers': FieldValue.arrayRemove([
-                                      widget.playerDeviceId,
-                                    ]),
-                                  });
+                              await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
+                                'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
+                                'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(), // <-- NEW: Nukes your profile!
+                              });
                             }
 
                             if (context.mounted) {
@@ -618,15 +614,11 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                       right: 4,
                       child: GestureDetector(
                         onTap: () async {
-                          // Instantly removes them from Firebase
-                          await FirebaseFirestore.instance
-                              .collection('rooms')
-                              .doc(widget.roomCode)
-                              .update({
-                                'connectedPlayers': FieldValue.arrayRemove([
-                                  targetDeviceId,
-                                ]),
-                              });
+                          // Instantly removes them from the array AND deletes their profile data
+                          await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
+                            'connectedPlayers': FieldValue.arrayRemove([targetDeviceId]),
+                            'playerProfiles.$targetDeviceId': FieldValue.delete(), // <-- NEW: Nukes the profile!
+                          });
                         },
                         child: Container(
                           padding: const EdgeInsets.all(4),
