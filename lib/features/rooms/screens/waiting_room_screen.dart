@@ -23,11 +23,15 @@ class WaitingRoomScreen extends StatefulWidget {
 class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
   // This is our background listener that watches for kicks and teleports
   StreamSubscription<DocumentSnapshot>? _roomSubscription;
+  Timer? _expirationTimer;
 
   @override
   void initState() {
     super.initState();
     _listenToRoomEvents();
+    
+    // NEW: Start the 10-minute countdown the second the screen loads
+    _expirationTimer = Timer(const Duration(minutes: 10), _handleRoomExpiration);
   }
 
   // --- THE MAGIC TELEPORT & KICK LOGIC ---
@@ -99,10 +103,48 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         });
   }
 
+// --- THE 10 MINUTE EXPIRATION LOGIC ---
+  void _handleRoomExpiration() async {
+    if (!mounted) return;
+
+    // 1. Put on earmuffs
+    _roomSubscription?.cancel();
+
+    // 2. Tell the user what happened
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Room expired due to inactivity.'),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 4),
+      ),
+    );
+
+    // 3. THE FIX: We removed the "if (widget.isHost)" rule!
+    // Now, if ANY player's timer hits 10 minutes, their phone acts as the 
+    // garbage collector and completely nukes the room from the database.
+    try {
+      await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).delete();
+    } catch (e) {
+      debugPrint("Error deleting expired room: $e");
+    }
+
+    // 4. Teleport back to start
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LandingScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   void dispose() {
-    // Always clean up listeners to prevent memory leaks!
     _roomSubscription?.cancel();
+    
+    // NEW: Cancel the stopwatch if we leave the screen early (e.g. game starts)
+    _expirationTimer?.cancel(); 
+    
     super.dispose();
   }
 
@@ -529,10 +571,16 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                             }
                             // IF GUEST: Just remove yourself
                             else {
-                              await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
-                                'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
-                                'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(), // <-- NEW: Nukes your profile!
-                              });
+                              await FirebaseFirestore.instance
+                                  .collection('rooms')
+                                  .doc(widget.roomCode)
+                                  .update({
+                                    'connectedPlayers': FieldValue.arrayRemove([
+                                      widget.playerDeviceId,
+                                    ]),
+                                    'playerProfiles.${widget.playerDeviceId}':
+                                        FieldValue.delete(), // <-- NEW: Nukes your profile!
+                                  });
                             }
 
                             if (context.mounted) {
@@ -615,10 +663,16 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                       child: GestureDetector(
                         onTap: () async {
                           // Instantly removes them from the array AND deletes their profile data
-                          await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
-                            'connectedPlayers': FieldValue.arrayRemove([targetDeviceId]),
-                            'playerProfiles.$targetDeviceId': FieldValue.delete(), // <-- NEW: Nukes the profile!
-                          });
+                          await FirebaseFirestore.instance
+                              .collection('rooms')
+                              .doc(widget.roomCode)
+                              .update({
+                                'connectedPlayers': FieldValue.arrayRemove([
+                                  targetDeviceId,
+                                ]),
+                                'playerProfiles.$targetDeviceId':
+                                    FieldValue.delete(), // <-- NEW: Nukes the profile!
+                              });
                         },
                         child: Container(
                           padding: const EdgeInsets.all(4),
