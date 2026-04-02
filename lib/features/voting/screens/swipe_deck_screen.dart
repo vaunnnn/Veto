@@ -5,71 +5,189 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:ui'; 
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SwipeDeckScreen extends StatefulWidget {
-  const SwipeDeckScreen({super.key});
+  final Set<String> selectedGenres;
+  final String roomCode;         
+  final String playerDeviceId;   
+
+  const SwipeDeckScreen({
+    super.key, 
+    required this.selectedGenres,
+    required this.roomCode,
+    required this.playerDeviceId,
+  });
 
   @override
   State<SwipeDeckScreen> createState() => _SwipeDeckScreenState();
 }
 
 class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
+  // --- VARIABLES ---
   final CardSwiperController controller = CardSwiperController();
-
+  StreamSubscription<DocumentSnapshot>? _matchSubscription;
+  String? _lastMatchedMovieId;
   List<Map<String, dynamic>> movies = [];
   bool isLoading = true;
+  int currentPage = 1; 
 
+  final Map<String, String> tmdbGenreIds = {
+    'Action': '28', 'Adventure': '12', 'Animation': '16', 'Biography': '36', 
+    'Comedy': '35', 'Documentary': '99', 'Drama': '18', 'Family': '10751', 
+    'Fantasy': '14', 'History': '36', 'Horror': '27', 'Musical': '10402', 
+    'Mystery': '9648', 'Romance': '10749', 'Sci-Fi': '878', 'Sport': '99', 
+    'Thriller': '53', 'Western': '37',
+  };
+
+  // --- INIT & DISPOSE ---
   @override
   void initState() {
     super.initState();
     _fetchMovies();
-  }
-
-  // --- API INTEGRATION ---
-  Future<void> _fetchMovies() async {
-    final List<String> testTitles = [
-      'Guardians of the Galaxy Vol. 2',
-      'The Dark Knight',
-      'Dune',
-      'Inception',
-      'Interstellar'
-    ];
-    
-    final String apiKey = dotenv.env['OMDB_API_KEY'] ?? '';
-    List<Map<String, dynamic>> fetchedMovies = [];
-
-    try {
-      for (String title in testTitles) {
-        final url = Uri.parse('https://www.omdbapi.com/?t=${Uri.encodeComponent(title)}&apikey=$apiKey');
-        final response = await http.get(url);
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['Response'] == 'True') {
-            fetchedMovies.add(data);
-          }
-        }
-      }
-
-      setState(() {
-        movies = fetchedMovies;
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint("Error fetching movies: $e");
-      setState(() => isLoading = false);
-    }
+    _listenForMatches(); 
   }
 
   @override
   void dispose() {
+    _matchSubscription?.cancel(); 
     controller.dispose();
     super.dispose();
   }
 
+  // --- FIREBASE & API LOGIC ---
+  void _listenForMatches() {
+    _matchSubscription = FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(widget.roomCode)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists || !mounted) return;
+      
+      final data = snapshot.data() as Map<String, dynamic>;
+      
+      if (data.containsKey('latestMatch')) {
+        final match = data['latestMatch'];
+        final String matchId = match['id'].toString();
+
+        if (_lastMatchedMovieId != matchId) {
+          _lastMatchedMovieId = matchId;
+          _showMatchOverlay(match);
+        }
+      }
+    });
+  }
+
+  Future<void> _fetchMovies() async {
+    final String apiKey = dotenv.env['TMDB_API_KEY'] ?? ''; 
+    
+    // --- NEW: THE GROUP GENRE MIXER ---
+    Set<String> combinedGenres = {};
+
+    try {
+      // 1. Ask Firebase what everyone in the room picked
+      final roomDoc = await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).get();
+      
+      if (roomDoc.exists) {
+        final data = roomDoc.data()!;
+        final Map<String, dynamic> profiles = data['playerProfiles'] ?? {};
+
+        // 2. Dump every single genre into our Set (which automatically removes duplicates!)
+        profiles.forEach((deviceId, profile) {
+          final List dynamicGenres = profile['genres'] ?? [];
+          combinedGenres.addAll(dynamicGenres.map((g) => g.toString()));
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching room genres: $e");
+    }
+
+    // 3. Fallback: If Firebase was too slow or empty, use the local user's genres just to be safe
+    if (combinedGenres.isEmpty) {
+      combinedGenres.addAll(widget.selectedGenres);
+    }
+
+    // 4. Translate the massive group list into TMDB IDs separated by a PIPE (|) for "OR"
+    String mappedIds = combinedGenres.map((g) => tmdbGenreIds[g]).where((id) => id != null).join('|');
+
+    // --- FETCH FROM TMDB ---
+    try {
+      final url = Uri.parse(
+        'https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&with_genres=$mappedIds&sort_by=popularity.desc&page=$currentPage'
+      );
+      
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          movies.addAll(List<Map<String, dynamic>>.from(data['results']));
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching TMDB movies: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _castVote(Map<String, dynamic> movie, bool isLike) async {
+    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
+    final String movieId = movie['id'].toString();
+
+    if (!isLike) {
+      await roomRef.set({
+        'votes': {
+          movieId: { 'vetoes': FieldValue.arrayUnion([widget.playerDeviceId]) }
+        }
+      }, SetOptions(merge: true));
+      return; 
+    }
+
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(roomRef);
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data()!;
+      final List connectedPlayers = data['connectedPlayers'] ?? [];
+      final Map votes = data['votes'] ?? {};
+      final Map movieVotes = votes[movieId] ?? {'likes': [], 'vetoes': []};
+
+      List likes = List.from(movieVotes['likes'] ?? []);
+      List vetoes = List.from(movieVotes['vetoes'] ?? []);
+
+      if (vetoes.isNotEmpty) return; 
+
+      if (!likes.contains(widget.playerDeviceId)) {
+        likes.add(widget.playerDeviceId);
+      }
+
+      transaction.set(roomRef, {
+        'votes': {
+          movieId: { 'likes': likes }
+        }
+      }, SetOptions(merge: true));
+
+      if (likes.length == connectedPlayers.length && connectedPlayers.isNotEmpty) {
+        transaction.update(roomRef, {
+          'latestMatch': movie, 
+          'matchedMovies': FieldValue.arrayUnion([movie]) 
+        });
+      }
+    });
+  }
+
+  // --- UI ACTIONS ---
   bool _onSwipe(int previousIndex, int? currentIndex, CardSwiperDirection direction) {
-    debugPrint('Swiped ${direction.name} on ${movies[previousIndex]['Title']}');
-    // Veto logic goes here!
+    bool isLike = direction == CardSwiperDirection.right;
+    _castVote(movies[previousIndex], isLike);
+
+    if (currentIndex != null && currentIndex >= movies.length - 3) {
+      currentPage++; 
+      _fetchMovies(); 
+    }
+    
     return true; 
   }
 
@@ -90,6 +208,108 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     );
   }
 
+  void _showMatchOverlay(Map<String, dynamic> movie) {
+    final String posterUrl = movie['poster_path'] != null 
+        ? 'https://image.tmdb.org/t/p/w500${movie['poster_path']}' 
+        : 'https://via.placeholder.com/500x750?text=No+Poster';
+
+    showGeneralDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9), 
+      barrierDismissible: false,
+      pageBuilder: (context, anim1, anim2) {
+        return Material(
+          color: Colors.transparent,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+              child: Column(
+                children: [
+                  const Text("CINEMA SELECTION", style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1.0),
+                      children: [
+                        TextSpan(text: "It's a "),
+                        TextSpan(text: "Match!", style: TextStyle(color: AppColors.primary)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        image: DecorationImage(image: NetworkImage(posterUrl), fit: BoxFit.cover),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.9)],
+                          ),
+                        ),
+                        alignment: Alignment.bottomLeft,
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(4)),
+                              child: const Text("100% MATCH", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(movie['title'].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                            const SizedBox(height: 4),
+                            Text(
+                              movie['overview'], 
+                              maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 30),
+                  
+                  SizedBox(
+                    width: double.infinity, height: 56,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                      onPressed: () {
+                        // Navigate to where they watch it, or back to landing
+                      }, 
+                      icon: const Icon(Icons.play_arrow, color: Colors.white),
+                      label: const Text("Watch Now", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity, height: 56,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.1), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                      onPressed: () => Navigator.pop(context), 
+                      icon: const Icon(Icons.thumb_up, color: Colors.white),
+                      label: const Text("Keep Voting", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- BUILD METHOD ---
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -136,7 +356,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                 children: [
                   const SizedBox(height: 20),
                   
-                  // The Scrollable Movie Card
                   Expanded(
                     child: CardSwiper(
                       controller: controller,
@@ -153,7 +372,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
 
                   const SizedBox(height: 16),
 
-                  // The New Scroll Indicator
                   Column(
                     children: [
                       Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade500, size: 20),
@@ -172,13 +390,11 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Symmetrical Action Buttons
                   Padding(
                     padding: const EdgeInsets.only(bottom: 40.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Dislike Button (Now matching the Heart button)
                         _buildCircularButton(
                           icon: Icons.close,
                           iconColor: Colors.white,
@@ -188,7 +404,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                           onTap: () => controller.swipe(CardSwiperDirection.left),
                         ),
                         const SizedBox(width: 30),
-                        // Approve Button
                         _buildCircularButton(
                           icon: Icons.favorite,
                           iconColor: Colors.white,
@@ -254,7 +469,6 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     
-    // Calculates a 0.0 to 1.0 progress based on the first 150 pixels of scrolling
     double offset = _scrollController.offset;
     double progress = (offset / 150.0).clamp(0.0, 1.0);
     
@@ -273,11 +487,29 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
 
   @override
   Widget build(BuildContext context) {
-    final String posterUrl = widget.movie['Poster'] != "N/A" 
-        ? widget.movie['Poster'] 
+    final String posterUrl = widget.movie['poster_path'] != null 
+        ? 'https://image.tmdb.org/t/p/w500${widget.movie['poster_path']}' 
         : 'https://via.placeholder.com/800x1200?text=No+Poster';
+        
+    final Map<int, String> tmdbReverseGenres = {
+      28: 'ACTION', 12: 'ADVENTURE', 16: 'ANIMATION', 35: 'COMEDY', 80: 'CRIME', 
+      99: 'DOCUMENTARY', 18: 'DRAMA', 10751: 'FAMILY', 14: 'FANTASY', 36: 'HISTORY', 
+      27: 'HORROR', 10402: 'MUSICAL', 9648: 'MYSTERY', 10749: 'ROMANCE', 878: 'SCI-FI', 
+      53: 'THRILLER', 37: 'WESTERN'
+    };
     
-    final String mainGenre = (widget.movie['Genre'] as String).split(',').first.toUpperCase();
+    String mainGenre = 'CINEMA';
+    if (widget.movie['genre_ids'] != null && (widget.movie['genre_ids'] as List).isNotEmpty) {
+      int firstId = widget.movie['genre_ids'][0];
+      mainGenre = tmdbReverseGenres[firstId] ?? 'CINEMA';
+    }
+
+    final String title = widget.movie['title'] ?? 'Unknown Title';
+    final String overview = widget.movie['overview'] ?? 'No plot available.';
+    final String releaseDate = widget.movie['release_date'] ?? '';
+    final String year = releaseDate.length >= 4 ? releaseDate.substring(0, 4) : '';
+    final String rating = (widget.movie['vote_average'] ?? 0.0).toStringAsFixed(1);
+    final String language = (widget.movie['original_language'] ?? '').toString().toUpperCase();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -285,52 +517,37 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              )
+              BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 10))
             ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: Stack(
               children: [
-                // 1. Static Poster Background
                 Positioned.fill(
-                  child: Image.network(posterUrl, fit: BoxFit.cover),
+                  child: Image.network(posterUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const SizedBox.shrink()),
                 ),
                 
-                // 2. Base Bottom Gradient (Always visible to pop the text)
                 Positioned(
                   bottom: 0, left: 0, right: 0,
                   child: Container(
                     height: 250,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
                         colors: [Colors.transparent, Colors.black.withValues(alpha: 0.9)],
                       ),
                     ),
                   ),
                 ),
 
-                // 3. Dynamic Blur & Darken Overlay (Reacts to scroll)
                 Positioned.fill(
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: _scrollProgress * 12.0, // Max blur of 12
-                      sigmaY: _scrollProgress * 12.0,
-                    ),
-                    child: Container(
-                      // Gets progressively darker up to 75% opacity
-                      color: Colors.black.withValues(alpha: _scrollProgress * 0.75), 
-                    ),
+                    filter: ImageFilter.blur(sigmaX: _scrollProgress * 12.0, sigmaY: _scrollProgress * 12.0),
+                    child: Container(color: Colors.black.withValues(alpha: _scrollProgress * 0.75)),
                   ),
                 ),
 
-                // 4. The Scrollable Content
                 Positioned.fill(
                   child: SingleChildScrollView(
                     controller: _scrollController,
@@ -338,54 +555,34 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Pushes the content down so the poster is visible initially
                         SizedBox(height: constraints.maxHeight - 200),
-                        
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Expanded Info Badges
                               Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
+                                spacing: 8, runSpacing: 8,
                                 children: [
-                                  _buildBadge('${widget.movie['imdbRating']} IMDB', AppColors.primary),
+                                  _buildBadge('$rating / 10', AppColors.primary),
                                   _buildBadge(mainGenre, Colors.white.withValues(alpha: 0.2)),
-                                  _buildBadge(widget.movie['Year'] ?? '', Colors.white.withValues(alpha: 0.2)),
-                                  _buildBadge(widget.movie['Rated'] ?? '', Colors.white.withValues(alpha: 0.2)),
-                                  _buildBadge(widget.movie['Runtime'] ?? '', Colors.white.withValues(alpha: 0.2)),
+                                  _buildBadge(year, Colors.white.withValues(alpha: 0.2)),
+                                  _buildBadge(language, Colors.white.withValues(alpha: 0.2)),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               
                               Text(
-                                widget.movie['Title'].toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                ),
+                                title.toUpperCase(),
+                                style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5),
                               ),
                               const SizedBox(height: 12),
                               
                               Text(
-                                widget.movie['Plot'],
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.9), 
-                                  fontSize: 14, 
-                                  height: 1.5
-                                ),
+                                overview,
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5),
                               ),
-                              const SizedBox(height: 24),
                               
-                              // Additional Information blocks
-                              _buildInfoBlock('CAST', widget.movie['Actors']),
-                              _buildInfoBlock('AWARDS', widget.movie['Awards']),
-                              
-                              // Extra padding so users can scroll all the way past the bottom text
                               const SizedBox(height: 60),
                             ],
                           ),
@@ -409,38 +606,6 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
       child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-    );
-  }
-
-  Widget _buildInfoBlock(String title, String? content) {
-    if (content == null || content.isEmpty || content == "N/A") return const SizedBox.shrink();
-    
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10, 
-              fontWeight: FontWeight.bold, 
-              color: Colors.white.withValues(alpha: 0.5), 
-              letterSpacing: 1.5
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            content,
-            style: const TextStyle(
-              color: Colors.white, 
-              fontSize: 14, 
-              fontWeight: FontWeight.w500,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
