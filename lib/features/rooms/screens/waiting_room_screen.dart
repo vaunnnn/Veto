@@ -29,9 +29,12 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
   void initState() {
     super.initState();
     _listenToRoomEvents();
-    
+
     // NEW: Start the 10-minute countdown the second the screen loads
-    _expirationTimer = Timer(const Duration(minutes: 10), _handleRoomExpiration);
+    _expirationTimer = Timer(
+      const Duration(minutes: 10),
+      _handleRoomExpiration,
+    );
   }
 
   // --- THE MAGIC TELEPORT & KICK LOGIC ---
@@ -94,7 +97,10 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const GenreSelectionScreen(),
+                    builder: (context) => GenreSelectionScreen(
+                      roomCode: widget.roomCode,
+                      playerDeviceId: widget.playerDeviceId,
+                    ),
                   ),
                 );
               }
@@ -103,7 +109,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         });
   }
 
-// --- THE 10 MINUTE EXPIRATION LOGIC ---
+  // --- THE 10 MINUTE EXPIRATION LOGIC ---
   void _handleRoomExpiration() async {
     if (!mounted) return;
 
@@ -120,10 +126,13 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     );
 
     // 3. THE FIX: We removed the "if (widget.isHost)" rule!
-    // Now, if ANY player's timer hits 10 minutes, their phone acts as the 
+    // Now, if ANY player's timer hits 10 minutes, their phone acts as the
     // garbage collector and completely nukes the room from the database.
     try {
-      await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).delete();
+      await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(widget.roomCode)
+          .delete();
     } catch (e) {
       debugPrint("Error deleting expired room: $e");
     }
@@ -141,10 +150,10 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
   @override
   void dispose() {
     _roomSubscription?.cancel();
-    
+
     // NEW: Cancel the stopwatch if we leave the screen early (e.g. game starts)
-    _expirationTimer?.cancel(); 
-    
+    _expirationTimer?.cancel();
+
     super.dispose();
   }
 
