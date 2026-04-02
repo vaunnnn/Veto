@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:veto/core/themes/app_colors.dart'; // Adjust if your package name is different
 import 'swipe_deck_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+
 
 class GenreSelectionScreen extends StatefulWidget {
-  const GenreSelectionScreen({super.key});
+  final String roomCode;
+  final String playerDeviceId;
+
+  const GenreSelectionScreen({
+    super.key, 
+    required this.roomCode, 
+    required this.playerDeviceId,
+  });
 
   @override
   State<GenreSelectionScreen> createState() => _GenreSelectionScreenState();
@@ -11,13 +21,24 @@ class GenreSelectionScreen extends StatefulWidget {
 
 class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   final List<Map<String, String>> genres = [
-    {'name': 'Horror', 'image': 'https://images.unsplash.com/photo-1505635552518-3448ff116af3?q=80&w=800&auto=format&fit=crop'},
-    {'name': 'Sci-Fi', 'image': 'https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?q=80&w=800&auto=format&fit=crop'},
-    {'name': 'Comedy', 'image': 'https://images.unsplash.com/photo-1543584756-8f40a802e14f?q=80&w=800&auto=format&fit=crop'},
     {'name': 'Action', 'image': 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop'},
-    {'name': 'Drama', 'image': 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Adventure', 'image': 'https://images.unsplash.com/photo-1536697246787-1f27c65a56c7?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Animation', 'image': 'https://images.unsplash.com/photo-1524253482453-3fed8d2fe12b?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Biography', 'image': 'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Comedy', 'image': 'https://images.unsplash.com/photo-1543584756-8f40a802e14f?q=80&w=800&auto=format&fit=crop'},
     {'name': 'Documentary', 'image': 'https://images.unsplash.com/photo-1552508744-1696d4464960?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Drama', 'image': 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Family', 'image': 'https://images.unsplash.com/photo-1484642055655-f8fc513b2ce4?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Fantasy', 'image': 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'History', 'image': 'https://images.unsplash.com/photo-1461360228754-6e81c478b882?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Horror', 'image': 'https://images.unsplash.com/photo-1505635552518-3448ff116af3?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Musical', 'image': 'https://images.unsplash.com/photo-1503095396549-807759245b35?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Mystery', 'image': 'https://images.unsplash.com/photo-1514355315815-2b64b0216b14?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Romance', 'image': 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Sci-Fi', 'image': 'https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Sport', 'image': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800&auto=format&fit=crop'},
     {'name': 'Thriller', 'image': 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?q=80&w=800&auto=format&fit=crop'},
+    {'name': 'Western', 'image': 'https://images.unsplash.com/photo-1534346875952-441865c3b174?q=80&w=800&auto=format&fit=crop'},
   ];
   
   final Set<String> selectedGenres = {};
@@ -25,12 +46,114 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   void _toggleGenre(String genre) {
     setState(() {
       if (selectedGenres.contains(genre)) {
+        // Always allow them to deselect a genre
         selectedGenres.remove(genre);
       } else {
-        selectedGenres.add(genre);
+        // If they haven't hit the limit yet, add it!
+        if (selectedGenres.length < 3) {
+          selectedGenres.add(genre);
+        } else {
+          // If they are already at 3, show a friendly warning
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You can only select up to 3 genres!'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       }
     });
   }
+
+  void _showWaitingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevents them from tapping outside to close it early
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Waiting for party...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+              }
+
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              final List<dynamic> connectedPlayers = data['connectedPlayers'] ?? [];
+              final Map<String, dynamic> profiles = data['playerProfiles'] ?? {};
+
+              int readyCount = 0;
+              List<Widget> playerStatusWidgets = [];
+
+              // Loop through everyone to see who is ready
+              for (String deviceId in connectedPlayers) {
+                final profile = profiles[deviceId] ?? {};
+                final String name = profile['name'] ?? 'Guest';
+                final String avatar = profile['avatar'] ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop';
+                final bool isReady = profile.containsKey('genres') && (profile['genres'] as List).isNotEmpty;
+
+                if (isReady) readyCount++;
+
+                String subtitleText = 'Choosing...';
+                if (isReady) {
+                  // Show the specific genres this person picked!
+                  final List<dynamic> userGenres = profile['genres'];
+                  subtitleText = userGenres.join(', '); 
+                }
+
+                playerStatusWidgets.add(
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(backgroundImage: NetworkImage(avatar)),
+                    title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: Text(subtitleText, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isReady ? Colors.green : Colors.grey)),
+                    trailing: isReady 
+                      ? const Icon(Icons.check_circle, color: Colors.green) 
+                      : const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                );
+              }
+
+              // --- TELEPORTATION LOGIC ---
+              // addPostFrameCallback ensures we don't try to navigate while the dialog is still drawing itself
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (data['status'] == 'swiping') {
+                  // The status flipped! Close dialog and teleport!
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SwipeDeckScreen()), // Add parameters here later if needed!
+                  );
+                } else if (readyCount == connectedPlayers.length && connectedPlayers.isNotEmpty) {
+                  // Everyone is ready! Tell Firebase to flip the status to 'swiping'
+                  FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
+                    'status': 'swiping'
+                  });
+                }
+              });
+
+              return SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('$readyCount / ${connectedPlayers.length} Players Ready', style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    ...playerStatusWidgets,
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  
 
   @override
   Widget build(BuildContext context) {
@@ -138,13 +261,14 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                 child: ElevatedButton(
                   onPressed: selectedGenres.isEmpty 
                     ? null 
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SwipeDeckScreen(),
-                          ),
-                        );
+                    : () async {
+                        // 1. Immediately pop up the "Waiting" dialog
+                        _showWaitingDialog();
+
+                        // 2. Save their selected genres to their specific profile in the database
+                        await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
+                          'playerProfiles.${widget.playerDeviceId}.genres': selectedGenres.toList(),
+                        });
                       },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -204,6 +328,10 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                   child: Image.network(
                     genre['image']!,
                     fit: BoxFit.cover,
+                    // NEW: If the image is broken, gracefully show nothing!
+                    errorBuilder: (context, error, stackTrace) {
+                      return const SizedBox.shrink(); // An invisible, zero-size box
+                    },
                   ),
                 ),
               ),

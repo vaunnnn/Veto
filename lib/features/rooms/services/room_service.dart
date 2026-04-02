@@ -39,9 +39,16 @@ class RoomService {
     final snapshot = await roomRef.get();
 
     if (snapshot.exists) {
-      // If the room exists, add the new player to the list
+      // NEW: Read the room's data to check the status
+      final data = snapshot.data() as Map<String, dynamic>;
+      
+      // NEW: If the game has already started, reject the join request!
+      if (data['status'] != 'waiting') {
+        return false; 
+      }
+
+      // If it exists AND is still 'waiting', let them in!
       await roomRef.update({
-        // FieldValue.arrayUnion ensures we don't add the same person twice!
         'connectedPlayers': FieldValue.arrayUnion([playerDeviceId])
       });
       return true; // Join successful
