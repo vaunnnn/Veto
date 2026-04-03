@@ -21,93 +21,75 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   final List<Map<String, String>> genres = [
     {
       'name': 'Action',
-      'image':
-          'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/action.png',
     },
     {
       'name': 'Adventure',
-      'image':
-          'https://images.unsplash.com/photo-1536697246787-1f27c65a56c7?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/adventure.png',
     },
     {
       'name': 'Animation',
-      'image':
-          'https://images.unsplash.com/photo-1524253482453-3fed8d2fe12b?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/animation.png',
     },
     {
       'name': 'Biography',
-      'image':
-          'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/biography.png',
     },
     {
       'name': 'Comedy',
-      'image':
-          'https://images.unsplash.com/photo-1543584756-8f40a802e14f?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/comedy.png',
     },
     {
       'name': 'Documentary',
-      'image':
-          'https://images.unsplash.com/photo-1552508744-1696d4464960?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/documentary.png',
     },
     {
       'name': 'Drama',
-      'image':
-          'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/drama.png',
     },
     {
       'name': 'Family',
-      'image':
-          'https://images.unsplash.com/photo-1484642055655-f8fc513b2ce4?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/family.png',
     },
     {
       'name': 'Fantasy',
-      'image':
-          'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/fantasy.png',
     },
     {
       'name': 'History',
-      'image':
-          'https://images.unsplash.com/photo-1461360228754-6e81c478b882?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/history.png',
     },
     {
       'name': 'Horror',
-      'image':
-          'https://images.unsplash.com/photo-1505635552518-3448ff116af3?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/horror.png',
     },
     {
       'name': 'Musical',
-      'image':
-          'https://images.unsplash.com/photo-1503095396549-807759245b35?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/musical.png',
     },
     {
       'name': 'Mystery',
-      'image':
-          'https://images.unsplash.com/photo-1514355315815-2b64b0216b14?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/mystery.png',
     },
     {
       'name': 'Romance',
-      'image':
-          'https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/romance.png',
     },
     {
       'name': 'Sci-Fi',
-      'image':
-          'https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/sci-fi.png',
     },
     {
       'name': 'Sport',
-      'image':
-          'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/sport.png',
     },
     {
       'name': 'Thriller',
-      'image':
-          'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/thriller.png',
     },
     {
       'name': 'Western',
-      'image':
-          'https://images.unsplash.com/photo-1534346875952-441865c3b174?q=80&w=800&auto=format&fit=crop',
+      'image': 'assets/images/western.png',
     },
   ];
 
@@ -283,35 +265,8 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.menu, color: theme.iconTheme.color),
-          onPressed: () {},
-        ),
-        title: const Text(
-          "VETO",
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w900,
-            fontSize: 28,
-            letterSpacing: -1.0,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              backgroundColor: AppColors.secondary,
-              radius: 18,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-          ),
-        ],
-      ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
@@ -319,15 +274,6 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
-                  "STEP 1: THE CURATED LIST",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                    color: Colors.grey,
-                  ),
-                ),
                 const SizedBox(height: 8),
                 RichText(
                   text: TextSpan(
@@ -348,7 +294,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Select genres to tailor your experience. More bars fit on screen for faster browsing.",
+                  "Select up to 3 genres you're in the mood for.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -379,6 +325,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
                 width: double.infinity,
+                height: 64,
                 child: ElevatedButton(
                   onPressed: selectedGenres.isEmpty
                       ? null
@@ -415,6 +362,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
           ),
         ],
       ),
+      )
     );
   }
 
@@ -459,12 +407,13 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                     ).createShader(rect);
                   },
                   blendMode: BlendMode.dstIn,
-                  child: Image.network(
+                  
+                  // CHANGE HERE: Update Image.network to Image.asset
+                  child: Image.asset(
                     genre['image']!,
                     fit: BoxFit.cover,
-                    // NEW: If the image is broken, gracefully show nothing!
                     errorBuilder: (context, error, stackTrace) {
-                      return const SizedBox.shrink(); // An invisible, zero-size box
+                      return const SizedBox.shrink(); 
                     },
                   ),
                 ),
