@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:veto/core/themes/app_colors.dart';
 import 'join_room_screen.dart';
 import 'waiting_room_screen.dart';
-import '../services/room_service.dart'; // Import your new service!
+import '../services/room_service.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
@@ -11,75 +12,381 @@ class LandingScreen extends StatelessWidget {
     final roomService = RoomService();
     // For now, we will use a dummy device ID until we build authentication
     final String myDeviceId = "device_${DateTime.now().millisecondsSinceEpoch}";
+    final size = MediaQuery.of(context).size;
+    
+    // NEW: Detect if the phone is in Dark Mode
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0),
+      backgroundColor: isDark ? Colors.black : Colors.white, // Adapts to mode
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'VETO',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 4,
+              // ==========================================
+              // SECTION 1: HERO (Matches Image 1)
+              // ==========================================
+              Container(
+                constraints: BoxConstraints(
+                  minHeight: size.height * 0.85,
                 ),
-              ),
-              const SizedBox(height: 50),
-
-              // Button 1: Join Room
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const JoinRoomScreen(),
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
+                    const SizedBox(height: 16),
+                    RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 68,
+                          fontWeight: FontWeight.w900,
+                          height: 0.95,
+                          letterSpacing: -1.5,
+                          fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'LESS\nCHOOSING\n',
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87), // Adapts to mode
+                          ),
+                          const TextSpan(
+                            text: 'MORE\nWATCHING',
+                            style: TextStyle(color: AppColors.primary), // Always Veto Red
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                  child: const Text('Join Room'),
-                ),
-              ),
-              const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Turn the 45-minute debate into a 5-minute game. Match on a movie before the popcorn gets cold.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, // Adapts to mode
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
 
-              // Button 2: Create Room
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: OutlinedButton(
-                  // Make this async so we can wait for Firebase
-                  onPressed: () async {
-                    // 1. Create the room in the database
-                    String newRoomCode = await roomService.createRoom(
-                      myDeviceId,
-                    );
-
-                    // 2. Navigate to the Waiting Room and pass the code
-                    if (context.mounted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => WaitingRoomScreen(
-                            roomCode: newRoomCode,
-                            isHost: true,
-                            playerDeviceId: myDeviceId, // <-- Add this!
+                    // Button 1: Create Room (Red)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 60,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                      );
-                    }
-                  },
-                  child: const Text(
-                    'Create Room',
-                  ), // Changed text from "Go to Waiting Room"
+                        onPressed: () async {
+                          // 1. Create the room in the database
+                          String newRoomCode = await roomService.createRoom(
+                            myDeviceId,
+                          );
+
+                          // 2. Navigate to the Waiting Room and pass the code
+                          if (context.mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => WaitingRoomScreen(
+                                  roomCode: newRoomCode,
+                                  isHost: true,
+                                  playerDeviceId: myDeviceId,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'CREATE ROOM',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Button 2: Join Room (Adapts to mode)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 60,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          // Lighter grey in dark mode so it doesn't blend into the black background
+                          backgroundColor: isDark ? Colors.grey.shade800 : const Color(0xFF1A1A1A), 
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const JoinRoomScreen(),
+                            ),
+                          );
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.people_alt_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'JOIN ROOM',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 40),
+                    Text(
+                      'SEE HOW IT WORKS',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2.0,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade400, size: 32),
+                  ],
                 ),
               ),
+
+              // ==========================================
+              // SECTION 2: WHAT IS VETO? (Matches Image 2)
+              // ==========================================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 60.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'WHAT IS ',
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87), // Adapts to mode
+                          ),
+                          const TextSpan(
+                            text: 'VETO?',
+                            style: TextStyle(color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Veto is the ultimate group decision-making tool for your next movie night. Think "Tinder for movies"—you and your friends swipe through curated lists of titles, liking what you want to watch and vetoing what you don\'t.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, // Adapts to mode
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'No more 45-minute debates or scrolling through thousands of options on Netflix. When everyone in your room likes the same movie, it\'s a match!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, // Adapts to mode
+                        height: 1.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ==========================================
+              // SECTION 3: HOW IT WORKS (Matches Image 3)
+              // ==========================================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'HOW IT ',
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87), // Adapts to mode
+                          ),
+                          const TextSpan(
+                            text: 'WORKS',
+                            style: TextStyle(color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    _buildStepCard(
+                      icon: Icons.meeting_room_rounded,
+                      title: '1. Create or Join',
+                      description: 'Start a new room and share the code, or jump into a friend\'s session instantly.',
+                      isDark: isDark, // Pass the mode down
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStepCard(
+                      icon: Icons.swipe_rounded,
+                      title: '2. Swipe on Movies',
+                      description: 'Everyone swipes independently on the same deck of films. Right for yes, left for no.',
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStepCard(
+                      icon: Icons.celebration_rounded,
+                      title: '3. Find a Winner',
+                      description: 'As soon as there\'s a group consensus, we\'ll notify everyone. Pop the popcorn!',
+                      isDark: isDark,
+                    ),
+                  ],
+                ),
+              ),
+
+              // ==========================================
+              // SECTION 4: FOOTER (Matches Image 4)
+              // ==========================================
+              Padding(
+                padding: const EdgeInsets.only(top: 60.0, bottom: 40.0),
+                child: Center(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'VETO',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                          letterSpacing: -1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '© ${DateTime.now().year} VETO. All rights reserved.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildFooterLink('Help'),
+                          _buildFooterLink('Privacy'),
+                          _buildFooterLink('Terms'),
+                          _buildFooterLink('Contact'),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              )
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // Helper widget for the "How it Works" cards
+  // NEW: Added isDark requirement to properly style the cards
+  Widget _buildStepCard({required IconData icon, required String title, required String description, required bool isDark}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.grey.shade50, // Adapts to mode
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200), // Adapts to mode
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 24),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87, // Adapts to mode
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 15,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, // Adapts to mode
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper widget for footer text links
+  Widget _buildFooterLink(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey.shade600, // Grey looks good on both modes here
         ),
       ),
     );
