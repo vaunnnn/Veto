@@ -121,18 +121,14 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   void _showWaitingDialog() {
     showDialog(
       context: context,
-      barrierDismissible:
-          false, // Prevents them from tapping outside to close it early
+      barrierDismissible: false, // Prevents them from tapping outside to close it early
       builder: (context) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
           ),
-          title: const Text(
-            'Waiting for party...',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-          content: StreamBuilder<DocumentSnapshot>(
+          backgroundColor: Colors.white,
+          child: StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('rooms')
                 .doc(widget.roomCode)
@@ -140,16 +136,14 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
             builder: (context, snapshot) {
               if (!snapshot.hasData || !snapshot.data!.exists) {
                 return const SizedBox(
-                  height: 100,
+                  height: 150,
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
 
               final data = snapshot.data!.data() as Map<String, dynamic>;
-              final List<dynamic> connectedPlayers =
-                  data['connectedPlayers'] ?? [];
-              final Map<String, dynamic> profiles =
-                  data['playerProfiles'] ?? {};
+              final List<dynamic> connectedPlayers = data['connectedPlayers'] ?? [];
+              final Map<String, dynamic> profiles = data['playerProfiles'] ?? {};
 
               int readyCount = 0;
               List<Widget> playerStatusWidgets = [];
@@ -158,74 +152,85 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
               for (String deviceId in connectedPlayers) {
                 final profile = profiles[deviceId] ?? {};
                 final String name = profile['name'] ?? 'Guest';
-                final String avatar =
-                    profile['avatar'] ??
+                final String avatar = profile['avatar'] ??
                     'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop';
-                final bool isReady =
-                    profile.containsKey('genres') &&
+                final bool isReady = profile.containsKey('genres') &&
                     (profile['genres'] as List).isNotEmpty;
 
                 if (isReady) readyCount++;
 
-                String subtitleText = 'Choosing...';
+                String subtitleText = 'Selecting...';
                 if (isReady) {
-                  // Show the specific genres this person picked!
                   final List<dynamic> userGenres = profile['genres'];
                   subtitleText = userGenres.join(', ');
                 }
 
+                // Build the player card matching the mockup
                 playerStatusWidgets.add(
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundImage: NetworkImage(avatar),
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    title: Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      subtitleText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isReady ? Colors.green : Colors.grey,
-                      ),
-                    ),
-                    trailing: isReady
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundImage: NetworkImage(avatar),
+                          radius: 22,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitleText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isReady ? Colors.grey.shade600 : Colors.red.shade600,
+                                  fontSize: 13,
+                                  fontWeight: isReady ? FontWeight.normal : FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        isReady
+                            ? const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 26) // Green Check
+                            : const Icon(Icons.more_horiz, color: Colors.grey, size: 26), // 3 dots
+                      ],
+                    ),
                   ),
                 );
               }
 
               // --- TELEPORTATION LOGIC ---
-              // addPostFrameCallback ensures we don't try to navigate while the dialog is still drawing itself
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (data['status'] == 'swiping') {
-                  // The status flipped! Close dialog and teleport!
-                  // The status flipped! Close dialog and teleport!
                   Navigator.pop(context);
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
                       builder: (context) => SwipeDeckScreen(
                         selectedGenres: selectedGenres,
-                        roomCode: widget.roomCode,             // <-- NEW: Pass the room code!
-                        playerDeviceId: widget.playerDeviceId, // <-- NEW: Pass the player ID!
-                      ), 
+                        roomCode: widget.roomCode,
+                        playerDeviceId: widget.playerDeviceId,
+                      ),
                     ),
                   );
-                } else if (readyCount == connectedPlayers.length &&
-                    connectedPlayers.isNotEmpty) {
-                  // Everyone is ready! Tell Firebase to flip the status to 'swiping'
+                } else if (readyCount == connectedPlayers.length && connectedPlayers.isNotEmpty) {
                   FirebaseFirestore.instance
                       .collection('rooms')
                       .doc(widget.roomCode)
@@ -233,21 +238,71 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                 }
               });
 
-              return SizedBox(
-                width: double.maxFinite,
+              int waitingFor = connectedPlayers.length - readyCount;
+
+              return Padding(
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '$readyCount / ${connectedPlayers.length} Players Ready',
+                      'Waiting for $waitingFor more...',
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 22,
+                        color: Colors.black87,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Sit tight, your group is making their picks.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // List of players
                     ...playerStatusWidgets,
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Cancel Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.grey.shade200,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: () async {
+                          // Clear genres from database and close dialog
+                          await FirebaseFirestore.instance
+                              .collection('rooms')
+                              .doc(widget.roomCode)
+                              .update({
+                            'playerProfiles.${widget.playerDeviceId}.genres': [],
+                          });
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                        child: Text(
+                          'Cancel Selection',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               );
