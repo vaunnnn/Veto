@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:ui'; 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:veto/features/rooms/screens/landing_screen.dart';
 
 class SwipeDeckScreen extends StatefulWidget {
   final Set<String> selectedGenres;
@@ -221,10 +222,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   }
 
   void _showMatchOverlay(Map<String, dynamic> movie) {
-    final String posterUrl = movie['poster_path'] != null 
-        ? 'https://image.tmdb.org/t/p/w500${movie['poster_path']}' 
-        : 'https://via.placeholder.com/500x750?text=No+Poster';
-
     showGeneralDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.9), 
@@ -250,44 +247,12 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                   ),
                   const SizedBox(height: 24),
                   
+                  // --- THE MAGIC ONE-LINER ---
+                  // This entirely replaces the old Container, Gradient, and Column!
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        image: DecorationImage(image: NetworkImage(posterUrl), fit: BoxFit.cover),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.9)],
-                          ),
-                        ),
-                        alignment: Alignment.bottomLeft,
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(4)),
-                              child: const Text("100% MATCH", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(movie['title'].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 4),
-                            Text(
-                              movie['overview'], 
-                              maxLines: 2, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    child: _ScrollableMovieCard(movie: movie),
                   ),
+                  // ---------------------------
                   
                   const SizedBox(height: 30),
                   
@@ -295,21 +260,21 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                     width: double.infinity, height: 56,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                      onPressed: () {
-                        // Navigate to where they watch it, or back to landing
-                      }, 
-                      icon: const Icon(Icons.play_arrow, color: Colors.white),
-                      label: const Text("Watch Now", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity, height: 56,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.1), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                      onPressed: () => Navigator.pop(context), 
-                      icon: const Icon(Icons.thumb_up, color: Colors.white),
-                      label: const Text("Keep Voting", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      onPressed: () async {
+                        try {
+                          await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).delete();
+                        } catch (e) {
+                          debugPrint("Error deleting room: $e");
+                        }
+                        if (!context.mounted) return;
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LandingScreen()), 
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.home, color: Colors.white),
+                      label: const Text("End Session & Go Home", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
