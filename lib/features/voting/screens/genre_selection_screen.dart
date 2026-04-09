@@ -19,78 +19,24 @@ class GenreSelectionScreen extends StatefulWidget {
 
 class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   final List<Map<String, String>> genres = [
-    {
-      'name': 'Action',
-      'image': 'assets/images/action.png',
-    },
-    {
-      'name': 'Adventure',
-      'image': 'assets/images/adventure.png',
-    },
-    {
-      'name': 'Animation',
-      'image': 'assets/images/animation.png',
-    },
-    {
-      'name': 'Biography',
-      'image': 'assets/images/biography.png',
-    },
-    {
-      'name': 'Comedy',
-      'image': 'assets/images/comedy.png',
-    },
-    {
-      'name': 'Documentary',
-      'image': 'assets/images/documentary.png',
-    },
-    {
-      'name': 'Drama',
-      'image': 'assets/images/drama.png',
-    },
-    {
-      'name': 'Family',
-      'image': 'assets/images/family.png',
-    },
-    {
-      'name': 'Fantasy',
-      'image': 'assets/images/fantasy.png',
-    },
-    {
-      'name': 'History',
-      'image': 'assets/images/history.png',
-    },
-    {
-      'name': 'Horror',
-      'image': 'assets/images/horror.png',
-    },
-    {
-      'name': 'Musical',
-      'image': 'assets/images/musical.png',
-    },
-    {
-      'name': 'Mystery',
-      'image': 'assets/images/mystery.png',
-    },
-    {
-      'name': 'Romance',
-      'image': 'assets/images/romance.png',
-    },
-    {
-      'name': 'Sci-Fi',
-      'image': 'assets/images/sci-fi.png',
-    },
-    {
-      'name': 'Sport',
-      'image': 'assets/images/sport.png',
-    },
-    {
-      'name': 'Thriller',
-      'image': 'assets/images/thriller.png',
-    },
-    {
-      'name': 'Western',
-      'image': 'assets/images/western.png',
-    },
+    {'name': 'Action', 'image': 'assets/images/action.png'},
+    {'name': 'Adventure', 'image': 'assets/images/adventure.png'},
+    {'name': 'Animation', 'image': 'assets/images/animation.png'},
+    {'name': 'Biography', 'image': 'assets/images/biography.png'},
+    {'name': 'Comedy', 'image': 'assets/images/comedy.png'},
+    {'name': 'Documentary', 'image': 'assets/images/documentary.png'},
+    {'name': 'Drama', 'image': 'assets/images/drama.png'},
+    {'name': 'Family', 'image': 'assets/images/family.png'},
+    {'name': 'Fantasy', 'image': 'assets/images/fantasy.png'},
+    {'name': 'History', 'image': 'assets/images/history.png'},
+    {'name': 'Horror', 'image': 'assets/images/horror.png'},
+    {'name': 'Musical', 'image': 'assets/images/musical.png'},
+    {'name': 'Mystery', 'image': 'assets/images/mystery.png'},
+    {'name': 'Romance', 'image': 'assets/images/romance.png'},
+    {'name': 'Sci-Fi', 'image': 'assets/images/sci-fi.png'},
+    {'name': 'Sport', 'image': 'assets/images/sport.png'},
+    {'name': 'Thriller', 'image': 'assets/images/thriller.png'},
+    {'name': 'Western', 'image': 'assets/images/western.png'},
   ];
 
   final Set<String> selectedGenres = {};
@@ -125,7 +71,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
 
     showDialog(
       context: context,
-      barrierDismissible: false, 
+      barrierDismissible: false,
       builder: (context) {
         return Dialog(
           // 2. WIDEN THE DIALOG: Reduces the default horizontal margins
@@ -149,8 +95,10 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
               }
 
               final data = snapshot.data!.data() as Map<String, dynamic>;
-              final List<dynamic> connectedPlayers = data['connectedPlayers'] ?? [];
-              final Map<String, dynamic> profiles = data['playerProfiles'] ?? {};
+              final List<dynamic> connectedPlayers =
+                  data['connectedPlayers'] ?? [];
+              final Map<String, dynamic> profiles =
+                  data['playerProfiles'] ?? {};
 
               int readyCount = 0;
               List<Widget> playerStatusWidgets = [];
@@ -158,9 +106,11 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
               for (String deviceId in connectedPlayers) {
                 final profile = profiles[deviceId] ?? {};
                 final String name = profile['name'] ?? 'Guest';
-                final String avatar = profile['avatar'] ??
+                final String avatar =
+                    profile['avatar'] ??
                     'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop';
-                final bool isReady = profile.containsKey('genres') &&
+                final bool isReady =
+                    profile.containsKey('genres') &&
                     (profile['genres'] as List).isNotEmpty;
 
                 if (isReady) readyCount++;
@@ -175,10 +125,15 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                   Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     // 3. OPTIMIZED LAYOUT: Reduced horizontal padding to give text more room
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       // Adapts inner card color
-                      color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade100,
+                      color: isDark
+                          ? theme.colorScheme.surfaceContainerHighest
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -187,7 +142,9 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                           backgroundImage: NetworkImage(avatar),
                           radius: 20, // Slightly smaller avatar
                         ),
-                        const SizedBox(width: 12), // Tighter spacing to maximize text width
+                        const SizedBox(
+                          width: 12,
+                        ), // Tighter spacing to maximize text width
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,7 +154,9 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: isDark ? Colors.white : Colors.black87, // Adapts text color
+                                  color: isDark
+                                      ? Colors.white
+                                      : Colors.black87, // Adapts text color
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -207,11 +166,16 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   // Adapts subtitle text color
-                                  color: isReady 
-                                      ? (isDark ? Colors.grey.shade400 : Colors.grey.shade600) 
+                                  color: isReady
+                                      ? (isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600)
                                       : Colors.red.shade400,
-                                  fontSize: 11.5, // LOWERED text size to fit 3 genres
-                                  fontWeight: isReady ? FontWeight.normal : FontWeight.bold,
+                                  fontSize:
+                                      11.5, // LOWERED text size to fit 3 genres
+                                  fontWeight: isReady
+                                      ? FontWeight.normal
+                                      : FontWeight.bold,
                                 ),
                               ),
                             ],
@@ -219,8 +183,18 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                         ),
                         const SizedBox(width: 8),
                         isReady
-                            ? const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 24)
-                            : Icon(Icons.more_horiz, color: isDark ? Colors.grey.shade600 : Colors.grey, size: 24),
+                            ? const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF10B981),
+                                size: 24,
+                              )
+                            : Icon(
+                                Icons.more_horiz,
+                                color: isDark
+                                    ? Colors.grey.shade600
+                                    : Colors.grey,
+                                size: 24,
+                              ),
                       ],
                     ),
                   ),
@@ -241,7 +215,8 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                       ),
                     ),
                   );
-                } else if (readyCount == connectedPlayers.length && connectedPlayers.isNotEmpty) {
+                } else if (readyCount == connectedPlayers.length &&
+                    connectedPlayers.isNotEmpty) {
                   FirebaseFirestore.instance
                       .collection('rooms')
                       .doc(widget.roomCode)
@@ -262,7 +237,9 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 22,
-                        color: isDark ? Colors.white : Colors.black87, // Adapts text
+                        color: isDark
+                            ? Colors.white
+                            : Colors.black87, // Adapts text
                         height: 1.2,
                       ),
                     ),
@@ -271,24 +248,28 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                       'Sit tight, your group is making their picks.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, // Adapts text
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600, // Adapts text
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     ...playerStatusWidgets,
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     SizedBox(
                       width: double.infinity,
                       height: 55,
                       child: TextButton(
                         style: TextButton.styleFrom(
                           // Adapts button color
-                          backgroundColor: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade200,
+                          backgroundColor: isDark
+                              ? theme.colorScheme.surfaceContainerHighest
+                              : Colors.grey.shade200,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
@@ -298,15 +279,18 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                               .collection('rooms')
                               .doc(widget.roomCode)
                               .update({
-                            'playerProfiles.${widget.playerDeviceId}.genres': [],
-                          });
+                                'playerProfiles.${widget.playerDeviceId}.genres':
+                                    [],
+                              });
                           if (context.mounted) Navigator.pop(context);
                         },
                         child: Text(
                           'Cancel Selection',
                           style: TextStyle(
                             // Adapts button text color
-                            color: isDark ? Colors.white70 : Colors.grey.shade700,
+                            color: isDark
+                                ? Colors.white70
+                                : Colors.grey.shade700,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -332,102 +316,140 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 8),
-                RichText(
-                  text: TextSpan(
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      color: isLightMode ? Colors.black : Colors.white,
-                      fontFamily: theme.textTheme.bodyLarge?.fontFamily,
-                    ),
-                    children: const [
-                      TextSpan(text: "What's the "),
-                      TextSpan(
-                        text: "Vibe?",
-                        style: TextStyle(color: AppColors.primary),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 8),
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        color: isLightMode ? Colors.black : Colors.white,
+                        fontFamily: theme.textTheme.bodyLarge?.fontFamily,
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "Select up to 3 genres you're in the mood for.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isLightMode ? Colors.black54 : Colors.white70,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: ListView.separated(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: genres.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final genre = genres[index];
-                final isSelected = selectedGenres.contains(genre['name']);
-                return _buildGenreCard(genre, isSelected);
-              },
-            ),
-          ),
-
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 64,
-                child: ElevatedButton(
-                  onPressed: selectedGenres.isEmpty
-                      ? null
-                      : () async {
-                          // 1. Immediately pop up the "Waiting" dialog
-                          _showWaitingDialog();
-
-                          // 2. Save their selected genres to their specific profile in the database
-                          await FirebaseFirestore.instance
-                              .collection('rooms')
-                              .doc(widget.roomCode)
-                              .update({
-                                'playerProfiles.${widget.playerDeviceId}.genres':
-                                    selectedGenres.toList(),
-                              });
-                        },
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'START VETOING',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      children: const [
+                        TextSpan(text: "What's the "),
+                        TextSpan(
+                          text: "Vibe?",
+                          style: TextStyle(color: AppColors.primary),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.play_arrow_rounded, size: 24),
-                    ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "Select up to 3 genres you're in the mood for.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isLightMode ? Colors.black54 : Colors.white70,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: ListView.separated(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
+                itemCount: genres.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final genre = genres[index];
+                  final isSelected = selectedGenres.contains(genre['name']);
+                  return _buildGenreCard(genre, isSelected);
+                },
+              ),
+            ),
+
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 64,
+                  child: ElevatedButton(
+                    onPressed: selectedGenres.isEmpty
+                        ? null
+                        : () async {
+                            // 1. Fetch the room data to see how many people are playing
+                            final roomDoc = await FirebaseFirestore.instance
+                                .collection('rooms')
+                                .doc(widget.roomCode)
+                                .get();
+
+                            final connectedPlayers =
+                                (roomDoc.data()?['connectedPlayers']
+                                    as List?) ??
+                                [];
+
+                            // 2. Save their selected genres to the database
+                            await FirebaseFirestore.instance
+                                .collection('rooms')
+                                .doc(widget.roomCode)
+                                .update({
+                                  'playerProfiles.${widget.playerDeviceId}.genres':
+                                      selectedGenres.toList(),
+                                });
+
+                            // 3. THE FIX: Are they playing solo? Skip the dialog entirely!
+                            if (connectedPlayers.length <= 1) {
+                              // Tell the database we are moving to the swiping phase
+                              await FirebaseFirestore.instance
+                                  .collection('rooms')
+                                  .doc(widget.roomCode)
+                                  .update({'status': 'swiping'});
+
+                              // Instantly teleport the solo player
+                              if (context.mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SwipeDeckScreen(
+                                      selectedGenres: selectedGenres,
+                                      roomCode: widget.roomCode,
+                                      playerDeviceId: widget.playerDeviceId,
+                                    ),
+                                  ),
+                                );
+                              }
+                            } else {
+                              // 4. Playing with friends? Show the normal waiting dialog!
+                              _showWaitingDialog();
+                            }
+                          },
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'START VETOING',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.play_arrow_rounded, size: 24),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      )
     );
   }
 
@@ -472,13 +494,13 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                     ).createShader(rect);
                   },
                   blendMode: BlendMode.dstIn,
-                  
+
                   // CHANGE HERE: Update Image.network to Image.asset
                   child: Image.asset(
                     genre['image']!,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      return const SizedBox.shrink(); 
+                      return const SizedBox.shrink();
                     },
                   ),
                 ),
