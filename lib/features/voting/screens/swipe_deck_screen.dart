@@ -304,10 +304,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.menu, color: theme.colorScheme.onSurface),
-          onPressed: () {}, 
-        ),
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min, 
@@ -324,25 +320,11 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                 color: AppColors.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 26,
-                letterSpacing: 1.5,
+                letterSpacing: 1.5, 
               ),
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: theme.brightness == Brightness.light ? const Color(0xFF1A1A1A) : Colors.white,
-              child: Icon(
-                Icons.person, 
-                size: 20, 
-                color: theme.brightness == Brightness.light ? Colors.white : const Color(0xFF1A1A1A),
-              ),
-            ),
-          )
-        ],
       ),
       body: isLoading 
         ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -350,7 +332,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
             ? const Center(child: Text("No movies found. Check your API key!"))
             : Column(
                 children: [
-                  const SizedBox(height: 20),
+                  // 1. Reduced top spacing to lift the card up slightly
+                  const SizedBox(height: 8), 
                   
                   Expanded(
                     child: CardSwiper(
@@ -358,7 +341,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                       cardsCount: movies.length,
                       onSwipe: _onSwipe,
                       onEnd: _onEnd,
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      // 2. Added bottom padding to shrink the height of the card
+                      padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 32.0), 
                       allowedSwipeDirection: const AllowedSwipeDirection.symmetric(horizontal: true),
                       cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
                         return _ScrollableMovieCard(movie: movies[index]);
@@ -366,17 +350,15 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
                   Column(
                     children: [
-                      Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade500, size: 20),
+                      Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade500, size: 18),
                       const SizedBox(height: 2),
                       Text(
                         "SCROLL FOR MORE INFO",
                         style: TextStyle(
                           color: Colors.grey.shade500,
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.5,
                         ),
@@ -384,10 +366,11 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
+                  // 4. Reduced bottom padding from 40.0 to 20.0
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 40.0),
+                    padding: const EdgeInsets.only(bottom: 20.0), 
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -395,25 +378,26 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                           icon: Icons.close,
                           iconColor: Colors.white,
                           backgroundColor: AppColors.primary,
-                          size: 80,
+                          size: 76, // Shaved down from 80
                           shadowColor: AppColors.primary.withValues(alpha: 0.4), 
                           onTap: () => controller.swipe(CardSwiperDirection.left),
                         ),
-                        const SizedBox(width: 30),
+                        const SizedBox(width: 42),
                         _buildCircularButton(
                           icon: Icons.favorite,
                           iconColor: Colors.white,
                           backgroundColor: AppColors.primary,
-                          size: 80,
+                          size: 76, // Shaved down from 80
                           shadowColor: AppColors.primary.withValues(alpha: 0.4), 
                           onTap: () => controller.swipe(CardSwiperDirection.right),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 32),
                 ],
               ),
-    );
+    ); // <-- This closes the Scaffold!
   }
 
   Widget _buildCircularButton({
