@@ -596,8 +596,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                   // THE NEW KICK BUTTON
                   if (isHostView && !isYou)
                     Positioned(
-                      top: 4,
-                      right: 4,
+                      top: 6,
+                      right: 6,
                       child: GestureDetector(
                         onTap: () async {
                           // Instantly removes them from the array AND deletes their profile data
@@ -605,23 +605,24 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                               .collection('rooms')
                               .doc(widget.roomCode)
                               .update({
-                                'connectedPlayers': FieldValue.arrayRemove([
-                                  targetDeviceId,
-                                ]),
-                                'playerProfiles.$targetDeviceId':
-                                    FieldValue.delete(), // <-- NEW: Nukes the profile!
-                              });
+                            'connectedPlayers': FieldValue.arrayRemove([
+                              targetDeviceId,
+                            ]),
+                            'playerProfiles.$targetDeviceId':
+                                FieldValue.delete(), 
+                          });
                         },
                         child: Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(6), // Slightly larger touch area
                           decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.9),
+                            // A sleek, semi-transparent dark background instead of bright red
+                            color: Colors.black.withValues(alpha: 0.6),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            Icons.close,
+                            Icons.person_remove_rounded, // Matches your reference image!
                             color: Colors.white,
-                            size: 14,
+                            size: 16,
                           ),
                         ),
                       ),
