@@ -231,23 +231,24 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false, 
-        titleSpacing: 32, // <-- NEW: Added extra padding to the left side
+        automaticallyImplyLeading: false,
+        centerTitle: true,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.movie_filter_rounded, 
+              Icons.movie_filter_rounded,
               color: colorScheme.primary,
               size: 28,
             ),
             const SizedBox(width: 8),
             Text(
-              'Veto',
+              'VETO',
               style: TextStyle(
                 color: colorScheme.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 26,
-                letterSpacing: -0.5, 
+                letterSpacing: 1.5, 
               ),
             ),
           ],

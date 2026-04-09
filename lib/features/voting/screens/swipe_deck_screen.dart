@@ -122,14 +122,22 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        setState(() {
-          movies.addAll(List<Map<String, dynamic>>.from(data['results']));
-          isLoading = false;
-        });
+        
+        // FIX: Check if the widget is still alive before updating the UI
+        if (mounted) {
+          setState(() {
+            movies.addAll(List<Map<String, dynamic>>.from(data['results']));
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
       debugPrint("Error fetching TMDB movies: $e");
-      setState(() => isLoading = false);
+      
+      // FIX: Check if the widget is still alive before updating the UI
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 

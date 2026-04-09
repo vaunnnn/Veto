@@ -119,15 +119,22 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   }
 
   void _showWaitingDialog() {
+    // 1. Capture the theme to dynamically adjust colors
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevents them from tapping outside to close it early
+      barrierDismissible: false, 
       builder: (context) {
         return Dialog(
+          // 2. WIDEN THE DIALOG: Reduces the default horizontal margins
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          backgroundColor: Colors.white,
+          // Adapts background color based on Light/Dark mode
+          backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
           child: StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('rooms')
@@ -148,7 +155,6 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
               int readyCount = 0;
               List<Widget> playerStatusWidgets = [];
 
-              // Loop through everyone to see who is ready
               for (String deviceId in connectedPlayers) {
                 final profile = profiles[deviceId] ?? {};
                 final String name = profile['name'] ?? 'Guest';
@@ -165,32 +171,33 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                   subtitleText = userGenres.join(', ');
                 }
 
-                // Build the player card matching the mockup
                 playerStatusWidgets.add(
                   Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    // 3. OPTIMIZED LAYOUT: Reduced horizontal padding to give text more room
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      // Adapts inner card color
+                      color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
                           backgroundImage: NetworkImage(avatar),
-                          radius: 22,
+                          radius: 20, // Slightly smaller avatar
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12), // Tighter spacing to maximize text width
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: Colors.black87,
+                                  color: isDark ? Colors.white : Colors.black87, // Adapts text color
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -199,17 +206,21 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: isReady ? Colors.grey.shade600 : Colors.red.shade600,
-                                  fontSize: 13,
+                                  // Adapts subtitle text color
+                                  color: isReady 
+                                      ? (isDark ? Colors.grey.shade400 : Colors.grey.shade600) 
+                                      : Colors.red.shade400,
+                                  fontSize: 11.5, // LOWERED text size to fit 3 genres
                                   fontWeight: isReady ? FontWeight.normal : FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         isReady
-                            ? const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 26) // Green Check
-                            : const Icon(Icons.more_horiz, color: Colors.grey, size: 26), // 3 dots
+                            ? const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 24)
+                            : Icon(Icons.more_horiz, color: isDark ? Colors.grey.shade600 : Colors.grey, size: 24),
                       ],
                     ),
                   ),
@@ -248,10 +259,10 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                     Text(
                       'Waiting for $waitingFor more...',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 22,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87, // Adapts text
                         height: 1.2,
                       ),
                     ),
@@ -260,31 +271,29 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                       'Sit tight, your group is making their picks.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, // Adapts text
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 24),
                     
-                    // List of players
                     ...playerStatusWidgets,
                     
                     const SizedBox(height: 16),
                     
-                    // Cancel Button
                     SizedBox(
                       width: double.infinity,
                       height: 55,
                       child: TextButton(
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.grey.shade200,
+                          // Adapts button color
+                          backgroundColor: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade200,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
                         onPressed: () async {
-                          // Clear genres from database and close dialog
                           await FirebaseFirestore.instance
                               .collection('rooms')
                               .doc(widget.roomCode)
@@ -296,7 +305,8 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                         child: Text(
                           'Cancel Selection',
                           style: TextStyle(
-                            color: Colors.grey.shade700,
+                            // Adapts button text color
+                            color: isDark ? Colors.white70 : Colors.grey.shade700,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
