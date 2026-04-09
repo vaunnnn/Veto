@@ -264,6 +264,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -272,56 +273,44 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         ? const Color(0xFFF8F9FA)
         : colorScheme.surface;
 
-    final List<Map<String, String>> dummyProfiles = [
-      {
-        'name': 'Movie Critic',
-        'image':
-            'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
-      },
-      {
-        'name': 'CinemaFan_99',
-        'image':
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
-      },
-      {
-        'name': 'DirectorCut',
-        'image':
-            'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop',
-      },
-      {
-        'name': 'TheAuteur',
-        'image':
-            'https://images.unsplash.com/photo-1530268729831-4b0b9e170218?q=80&w=200&auto=format&fit=crop',
-      },
-      {
-        'name': 'ClassicCine',
-        'image':
-            'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=200&auto=format&fit=crop',
-      },
-    ];
-
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Icon(Icons.menu, color: colorScheme.onSurface),
-        title: Text(
-          'VETO',
-          style: TextStyle(
-            color: colorScheme.primary,
-            fontWeight: FontWeight.w900,
-            fontSize: 24,
-            letterSpacing: 1.5,
-          ),
+        automaticallyImplyLeading: false, 
+        titleSpacing: 32, // <-- NEW: Added extra padding to the left side
+        title: Row(
+          children: [
+            Icon(
+              Icons.movie_filter_rounded, 
+              color: colorScheme.primary,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Veto',
+              style: TextStyle(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 26,
+                letterSpacing: -0.5, 
+              ),
+            ),
+          ],
         ),
-        centerTitle: false,
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundImage: NetworkImage(dummyProfiles[0]['image']!),
+            padding: const EdgeInsets.only(right: 24.0), // <-- NEW: Added extra padding to the right side
+            child: IconButton(
+              icon: Icon(
+                Icons.settings_rounded,
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                size: 26,
+              ),
+              onPressed: () {
+                // TODO: Wire up settings later!
+              },
             ),
           ),
         ],
@@ -350,14 +339,15 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 10),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
+
+                        // MOVED BACK: PEOPLE WAITING COUNT IS ON TOP
                         Row(
                           children: [
                             Icon(
-                              Icons.people,
+                              Icons.people_alt_rounded, 
                               color: colorScheme.primary,
-                              size: 16,
+                              size: 18,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -374,6 +364,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                         ),
                         const SizedBox(height: 24),
 
+                        // ROOM CODE CARD (Now sits below the count)
                         Container(
                           decoration: BoxDecoration(
                             color: theme.brightness == Brightness.light
@@ -405,8 +396,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                   child: Padding(
                                     padding: const EdgeInsets.all(20.0),
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'ROOM CODE',
@@ -446,28 +436,28 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 30),
+                        
+                        const SizedBox(height: 32),
 
+                        // PLAYER GRID
                         GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
-                              ),
-                          itemCount:
-                              playerCount, // Removed the +1 for the invite card
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.75,
+                          ),
+                          itemCount: playerCount,
                           itemBuilder: (context, index) {
                             final String targetDeviceId =
                                 connectedPlayers[index];
 
-                            // NEW: Grab the profiles dictionary from Firebase
                             final Map<String, dynamic> playerProfiles =
                                 data['playerProfiles'] ?? {};
-                            // NEW: Find this specific player's data, or give them a default if they haven't set one yet
+                            
                             final Map<String, dynamic> currentProfile =
                                 playerProfiles[targetDeviceId] ??
                                 {
@@ -484,8 +474,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                 : 'READY TO VETO';
 
                             return _buildPlayerCard(
-                              currentProfile['name']!, // Updated!
-                              currentProfile['avatar']!, // Updated!
+                              currentProfile['name']!, 
+                              currentProfile['avatar']!, 
                               status,
                               isCurrentUser,
                               widget.isHost,
@@ -501,6 +491,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                   ),
                 ),
 
+                // FOOTER CONTROLS
                 Container(
                   padding: const EdgeInsets.only(
                     left: 24,
@@ -527,8 +518,6 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                           ),
                           onPressed: widget.isHost
                               ? () async {
-                                  // Instead of navigating, the Host just tells Firebase "We are starting!"
-                                  // The background listener will catch this and teleport EVERYONE.
                                   await FirebaseFirestore.instance
                                       .collection('rooms')
                                       .doc(widget.roomCode)
@@ -567,29 +556,24 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                             ),
                           ),
                           onPressed: () async {
-                            // NEW: Put on earmuffs! Cancel the background listener right now
-                            // so you don't trigger your own "kicked" notification.
                             _roomSubscription?.cancel();
 
-                            // IF HOST: Delete the entire room
                             if (widget.isHost) {
                               await FirebaseFirestore.instance
                                   .collection('rooms')
                                   .doc(widget.roomCode)
                                   .delete();
-                            }
-                            // IF GUEST: Just remove yourself
-                            else {
+                            } else {
                               await FirebaseFirestore.instance
                                   .collection('rooms')
                                   .doc(widget.roomCode)
                                   .update({
-                                    'connectedPlayers': FieldValue.arrayRemove([
-                                      widget.playerDeviceId,
-                                    ]),
-                                    'playerProfiles.${widget.playerDeviceId}':
-                                        FieldValue.delete(), // <-- NEW: Nukes your profile!
-                                  });
+                                'connectedPlayers': FieldValue.arrayRemove([
+                                  widget.playerDeviceId,
+                                ]),
+                                'playerProfiles.${widget.playerDeviceId}':
+                                    FieldValue.delete(), 
+                              });
                             }
 
                             if (context.mounted) {
