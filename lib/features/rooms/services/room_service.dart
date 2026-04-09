@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 class RoomService {
   // The 'get' keyword waits until the absolute last second to connect
@@ -19,15 +20,38 @@ class RoomService {
   Future<String> createRoom(String hostDeviceId) async {
     final String roomCode = _generateRoomCode();
 
-    // Create a new document in the 'rooms' collection
-    await _db.collection('rooms').doc(roomCode).set({
+    // --- 🧹 THE SNEAKY GARBAGE COLLECTOR ---
+    try {
+      // 1. Find all rooms where the 'expiresAt' time is in the past
+      final expiredRooms = await FirebaseFirestore.instance
+          .collection('rooms')
+          .where('expiresAt', isLessThan: Timestamp.now())
+          .get();
+
+      // 2. Delete them silently in the background
+      for (var doc in expiredRooms.docs) {
+        await doc.reference.delete();
+      }
+      
+      if (expiredRooms.docs.isNotEmpty) {
+        debugPrint("Cleaned up ${expiredRooms.docs.length} dead rooms!");
+      }
+    } catch (e) {
+      // If it fails, who cares? We just want them to get into their new room!
+      debugPrint("Garbage collector skipped: $e");
+    }
+    // ----------------------------------------
+
+    // --- ✨ CREATE THE NEW ROOM ---
+    await FirebaseFirestore.instance.collection('rooms').doc(roomCode).set({
       'hostId': hostDeviceId,
-      'status': 'waiting', // The room is open but the game hasn't started
-      'connectedPlayers': [hostDeviceId], // Host is the first player
-      'createdAt': FieldValue.serverTimestamp(), // Good for cleaning up old rooms later
+      'status': 'waiting', 
+      'connectedPlayers': [hostDeviceId], 
+      // Set this room to officially "expire" 60 minutes from right now
+      'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 60))),
     });
 
-    return roomCode; // Return the code so the UI can display it
+    return roomCode; 
   }
 
   // --- 3. THE "JOIN" FLOW ---
