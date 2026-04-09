@@ -1,4 +1,4 @@
-import 'dart:async'; // Added to allow background listening
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:veto/features/voting/screens/genre_selection_screen.dart';
@@ -252,21 +252,6 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 24.0), // <-- NEW: Added extra padding to the right side
-            child: IconButton(
-              icon: Icon(
-                Icons.settings_rounded,
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
-                size: 26,
-              ),
-              onPressed: () {
-                // TODO: Wire up settings later!
-              },
-            ),
-          ),
-        ],
       ),
       // We still use StreamBuilder to draw the UI live
       body: StreamBuilder<DocumentSnapshot>(

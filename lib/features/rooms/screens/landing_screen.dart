@@ -39,26 +39,29 @@ class LandingScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 40),
                     const SizedBox(height: 16),
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: TextStyle(
-                          fontSize: 68,
-                          fontWeight: FontWeight.w900,
-                          height: 0.95,
-                          letterSpacing: -1.5,
-                          fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 68, // Keeps your massive, premium size for large phones
+                            fontWeight: FontWeight.w900,
+                            height: 0.95,
+                            letterSpacing: -1.5,
+                            fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'LESS\nCHOOSING\n',
+                              style: TextStyle(color: isDark ? Colors.white : Colors.black87), 
+                            ),
+                            const TextSpan(
+                              text: 'MORE\nWATCHING',
+                              style: TextStyle(color: AppColors.primary), 
+                            ),
+                          ],
                         ),
-                        children: [
-                          TextSpan(
-                            text: 'LESS\nCHOOSING\n',
-                            style: TextStyle(color: isDark ? Colors.white : Colors.black87), // Adapts to mode
-                          ),
-                          const TextSpan(
-                            text: 'MORE\nWATCHING',
-                            style: TextStyle(color: AppColors.primary), // Always Veto Red
-                          ),
-                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
