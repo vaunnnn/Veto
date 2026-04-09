@@ -315,7 +315,7 @@ class LandingScreen extends StatelessWidget {
               ),
 
               // ==========================================
-              // SECTION 4: FOOTER (Matches Image 4)
+              // SECTION 4: FOOTER 
               // ==========================================
               Padding(
                 padding: const EdgeInsets.only(top: 60.0, bottom: 40.0),
@@ -339,6 +339,34 @@ class LandingScreen extends StatelessWidget {
                           color: Colors.grey.shade500,
                         ),
                       ),
+                      const SizedBox(height: 32),
+                      
+                      // TMDB API Legal Attribution
+                      SizedBox(
+                        width: 280, // This locks the logo and text into a single, perfectly centered block
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/images/tmdb-logo.png',
+                              width: 36,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'This product uses the TMDB API but is not endorsed or certified by TMDB.',
+                                textAlign: TextAlign.left,
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.grey.shade500,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
                       const SizedBox(height: 24),
                     ],
                   ),
