@@ -308,16 +308,27 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
           icon: Icon(Icons.menu, color: theme.colorScheme.onSurface),
           onPressed: () {}, 
         ),
-        title: const Text(
-          "VETO",
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w900,
-            fontSize: 28,
-            letterSpacing: -1.0,
-          ),
-        ),
         centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min, 
+          children: [
+            const Icon(
+              Icons.movie_filter_rounded, 
+              color: AppColors.primary,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'VETO',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 26,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
