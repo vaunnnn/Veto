@@ -182,17 +182,21 @@ class LandingScreen extends StatelessWidget {
               ),
 
               // ==========================================
-              // SECTION 2: WHAT IS VETO? (Matches Image 2)
+              // SECTION 2: WHAT IS VETO?
               // ==========================================
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 60.0),
+              Container(
+                constraints: BoxConstraints(
+                  minHeight: size.height * 0.85, // Forces this section to take up the whole screen
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center, // Centers everything vertically
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     RichText(
                       text: TextSpan(
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 32, // Slightly larger to command the empty space
                           fontWeight: FontWeight.w900,
                           letterSpacing: -0.5,
                           fontFamily: Theme.of(context).textTheme.bodyLarge?.fontFamily,
@@ -200,7 +204,7 @@ class LandingScreen extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: 'WHAT IS ',
-                            style: TextStyle(color: isDark ? Colors.white : Colors.black87), // Adapts to mode
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87), 
                           ),
                           const TextSpan(
                             text: 'VETO?',
@@ -209,22 +213,47 @@ class LandingScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32), // Increased spacing for breathing room
                     Text(
                       'Veto is the ultimate group decision-making tool for your next movie night. Think "Tinder for movies"—you and your friends swipe through curated lists of titles, liking what you want to watch and vetoing what you don\'t.',
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, // Adapts to mode
-                        height: 1.6,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, 
+                        height: 1.7, // Increased line height for better readability
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     Text(
                       'No more 45-minute debates or scrolling through thousands of options on Netflix. When everyone in your room likes the same movie, it\'s a match!',
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, // Adapts to mode
-                        height: 1.6,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, 
+                        height: 1.7,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // NEW: A stylized highlight box to fill space and add a premium touch
+                    Container(
+                      width: double.infinity, // Ensures the box still stretches across the screen
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.primary.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.15),
+                        ),
+                      ),
+                      child: Text(
+                        "The average person spends over 100 hours a year just deciding what to watch. Take that time back.",
+                        textAlign: TextAlign.center, // Centers the text nicely
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w600, // Slightly bolder to make it pop
+                          color: isDark ? Colors.grey.shade300 : AppColors.primary,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ],
@@ -311,16 +340,6 @@ class LandingScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildFooterLink('Help'),
-                          _buildFooterLink('Privacy'),
-                          _buildFooterLink('Terms'),
-                          _buildFooterLink('Contact'),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -373,21 +392,6 @@ class LandingScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Helper widget for footer text links
-  Widget _buildFooterLink(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey.shade600, // Grey looks good on both modes here
-        ),
       ),
     );
   }
