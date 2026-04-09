@@ -242,7 +242,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
               child: Column(
                 children: [
-                  const Text("CINEMA SELECTION", style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
+                  const Text("THE JURY HAS DECIDED...", style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   RichText(
                     text: const TextSpan(
@@ -302,6 +302,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
