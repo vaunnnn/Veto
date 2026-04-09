@@ -71,16 +71,27 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
           icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'VETO',
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: colorScheme.primary, // Veto Red
-            fontWeight: FontWeight.w900,
-            fontSize: 24,
-            letterSpacing: 1.5,
-          ),
+        centerTitle: true, // Forces the Row to center
+        title: Row(
+          mainAxisSize: MainAxisSize.min, // Shrink-wraps the icon and text together
+          children: [
+            Icon(
+              Icons.movie_filter_rounded,
+              color: colorScheme.primary,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'VETO',
+              style: TextStyle(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 26,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
         ),
-        centerTitle: true,
       ),
       body: Stack(
         children: [
