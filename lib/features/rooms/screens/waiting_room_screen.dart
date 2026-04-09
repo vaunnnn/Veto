@@ -112,12 +112,12 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
 
   // 1. A fun list of pre-made avatars
   final List<String> availableAvatars = [
-    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1530268729831-4b0b9e170218?q=80&w=200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200&auto=format&fit=crop',
+    'assets/images/default-pic-1.png',
+    'assets/images/default-pic-2.png',
+    'assets/images/default-pic-3.png',
+    'assets/images/default-pic-4.png',
+    'assets/images/default-pic-5.png',
+    'assets/images/default-pic-6.png',
   ];
 
   // 2. The Pop-up Dialog
@@ -174,7 +174,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                               shape: BoxShape.circle,
                             ),
                             child: CircleAvatar(
-                              backgroundImage: NetworkImage(url),
+                              backgroundImage: AssetImage(url),
                               radius: 25,
                             ),
                           ),
@@ -580,11 +580,17 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      imageUrl,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    child: imageUrl.startsWith('http')
+                        ? Image.network(
+                            imageUrl,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.asset(
+                            imageUrl,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                   ),
 
                   // THE NEW KICK BUTTON
