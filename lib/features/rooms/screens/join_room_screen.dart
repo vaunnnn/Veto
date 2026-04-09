@@ -112,24 +112,16 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: Column(
                       children: [
-                        const SizedBox(height: 30),
+                        // 1. INCREASED SPACING: Lowers the content into a more comfortable "thumb zone"
+                        const SizedBox(height: 50),
 
                         // Header Section
-                        Text(
-                          'PREMIUM ACCESS',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2.0,
-                            color: colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                        ),
                         const SizedBox(height: 12),
                         Text(
-                          'Enter the\nSilver Screen',
+                          'Grab a Seat\n with Your Friends.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 36,
+                            fontSize: 42,
                             fontWeight: FontWeight.w900,
                             height: 1.1,
                             color: colorScheme.onSurface,
@@ -139,7 +131,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           child: Text(
-                            'Input your unique invite code to join the synchronized cinematic session.',
+                            'Input your friend\'s invite code to join the vetoing session.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14,
@@ -150,7 +142,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 32),
 
                         // Input Card Section
                         Container(
@@ -208,9 +200,10 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                   decoration: InputDecoration(
                                     hintText: 'V E T O - X X X X',
                                     hintStyle: TextStyle(
-                                      color: colorScheme.primary.withValues(
-                                        alpha: 0.2,
-                                      ),
+                                      // 2. DYNAMIC COLOR: Adapts visibility based on Light/Dark Mode
+                                      color: theme.brightness == Brightness.light
+                                          ? colorScheme.primary.withValues(alpha: 0.2)
+                                          : colorScheme.onSurface.withValues(alpha: 0.4),
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 2.0,
                                       fontSize: 20,
@@ -262,70 +255,6 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                         ),
 
                         const SizedBox(height: 24),
-
-                        // "Live Now" Promo Card
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: theme.brightness == Brightness.light
-                                ? const Color(0xFFF4F4F5)
-                                : colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              // Movie Poster Thumbnail
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=200&auto=format&fit=crop', // Placeholder poster
-                                  width: 60,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              // Promo Text
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'LIVE NOW',
-                                      style: TextStyle(
-                                        color: colorScheme.primary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.0,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Synchronized Playback',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurface,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Join your party for real-time reactions and voting.',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurface.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        fontSize: 12,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -343,6 +272,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
               ],
             ),
           ),

@@ -395,19 +395,4 @@ class LandingScreen extends StatelessWidget {
       ),
     );
   }
-
-  // Helper widget for footer text links
-  Widget _buildFooterLink(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey.shade600, // Grey looks good on both modes here
-        ),
-      ),
-    );
-  }
 }
