@@ -133,43 +133,55 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   }
 
   Future<void> _castVote(Map<String, dynamic> movie, bool isLike) async {
-    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
     final String movieId = movie['id'].toString();
+    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
+    
+    // NEW: We create a specific document just for THIS movie's votes!
+    // Path: rooms/{roomCode}/votes/{movieId}
+    final movieVoteRef = roomRef.collection('votes').doc(movieId);
 
     if (!isLike) {
-      await roomRef.set({
-        'votes': {
-          movieId: { 'vetoes': FieldValue.arrayUnion([widget.playerDeviceId]) }
-        }
+      // ❌ TRUE VETO: We only update the movie's private document. Zero lag.
+      await movieVoteRef.set({
+        'vetoes': FieldValue.arrayUnion([widget.playerDeviceId])
       }, SetOptions(merge: true));
       return; 
     }
 
+    // 💚 LIKE: We run the transaction on the MOVIE document, NOT the main room!
     await FirebaseFirestore.instance.runTransaction((transaction) async {
-      final snapshot = await transaction.get(roomRef);
-      if (!snapshot.exists) return;
+      // 1. Check the main room to see how many players are connected
+      final roomSnapshot = await transaction.get(roomRef);
+      if (!roomSnapshot.exists) return;
+      final int totalPlayers = (roomSnapshot.data()!['connectedPlayers'] as List?)?.length ?? 0;
 
-      final data = snapshot.data()!;
-      final List connectedPlayers = data['connectedPlayers'] ?? [];
-      final Map votes = data['votes'] ?? {};
-      final Map movieVotes = votes[movieId] ?? {'likes': [], 'vetoes': []};
+      // 2. Check the movie's specific vote document
+      final movieSnapshot = await transaction.get(movieVoteRef);
+      List likes = [];
+      List vetoes = [];
 
-      List likes = List.from(movieVotes['likes'] ?? []);
-      List vetoes = List.from(movieVotes['vetoes'] ?? []);
+      if (movieSnapshot.exists) {
+        likes = List.from(movieSnapshot.data()!['likes'] ?? []);
+        vetoes = List.from(movieSnapshot.data()!['vetoes'] ?? []);
+      }
 
+      // If someone already vetoed it, abort!
       if (vetoes.isNotEmpty) return; 
 
+      // 3. Add our like
       if (!likes.contains(widget.playerDeviceId)) {
         likes.add(widget.playerDeviceId);
       }
 
-      transaction.set(roomRef, {
-        'votes': {
-          movieId: { 'likes': likes }
-        }
+      // Save the like to the movie's private document
+      transaction.set(movieVoteRef, {
+        'likes': likes
       }, SetOptions(merge: true));
 
-      if (likes.length == connectedPlayers.length && connectedPlayers.isNotEmpty) {
+      // 🏆 THE 100% CONSENSUS CHECK
+      if (likes.length == totalPlayers && totalPlayers > 0) {
+        // ONLY if it's a perfect match do we update the main room document
+        // This is what instantly triggers the pop-up for everyone!
         transaction.update(roomRef, {
           'latestMatch': movie, 
           'matchedMovies': FieldValue.arrayUnion([movie]) 
