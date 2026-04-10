@@ -234,6 +234,24 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.9), 
       barrierDismissible: false,
+      // 1. Give the animation a nice, snappy duration
+      transitionDuration: const Duration(milliseconds: 400),
+      // 2. THE FIX: The custom float-up animation builder
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        // Start at the bottom (y = 1.0) and end exactly in the center (y = 0.0)
+        const begin = Offset(0.0, 1.0);
+        const end = Offset.zero;
+        // easeOutQuart gives it a fast initial slide that softly slows down at the end
+        const curve = Curves.easeOutQuart;
+
+        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var offsetAnimation = animation.drive(tween);
+
+        return SlideTransition(
+          position: offsetAnimation,
+          child: child,
+        );
+      },
       pageBuilder: (context, anim1, anim2) {
         return Material(
           color: Colors.transparent,
@@ -256,7 +274,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                   const SizedBox(height: 24),
                   
                   // --- THE MAGIC ONE-LINER ---
-                  // This entirely replaces the old Container, Gradient, and Column!
                   Expanded(
                     child: _ScrollableMovieCard(movie: movie),
                   ),
