@@ -121,14 +121,17 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
   ];
 
   // 2. The Pop-up Dialog
+  // 2. The Pop-up Dialog
   void _showEditProfileDialog(String currentName, String currentAvatar) {
-    String newName = currentName;
+    final TextEditingController nameController = TextEditingController(text: currentName);
     String newAvatar = currentAvatar;
 
     showDialog(
       context: context,
       builder: (context) {
-        // StatefulBuilder allows the dialog to update instantly when you tap an avatar
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        final avatarBgColor = isDarkMode ? Colors.white : Colors.grey.shade300;
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -140,65 +143,91 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    const SizedBox(height: 12),
                     TextField(
                       decoration: const InputDecoration(
                         labelText: 'Display Name',
                       ),
-                      onChanged: (value) => newName = value,
-                      controller: TextEditingController(text: currentName),
+                      controller: nameController,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     const Text(
-                      'Choose Avatar',
+                      'Choose Your Avatar',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+                      spacing: 12,
+                      runSpacing: 12,
                       children: availableAvatars.map((url) {
                         bool isSelected = newAvatar == url;
                         return GestureDetector(
                           onTap: () => setDialogState(() => newAvatar = url),
                           child: Container(
+                            // NEW: Adds a 3-pixel gap between the avatar and the selection ring!
+                            padding: const EdgeInsets.all(3), 
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: isSelected
-                                    ? Theme.of(context).colorScheme.primary
+                                    ? Theme.of(context).colorScheme.primary // The red selection color
                                     : Colors.transparent,
-                                width: 3,
+                                width: 2.0, // A thin, clean outline
                               ),
                               shape: BoxShape.circle,
                             ),
                             child: CircleAvatar(
+                              // NEW: Applies your grey/white background behind the transparent PNGs
+                              backgroundColor: avatarBgColor,
                               backgroundImage: AssetImage(url),
-                              radius: 25,
+                              radius: 36,
                             ),
                           ),
                         );
                       }).toList(),
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    // Makes the Cancel splash a very soft, clean version of your primary color
+                    overlayColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                  ),
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('CANCEL'),
+                  child: const Text(
+                    'CANCEL',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    overlayColor: Colors.white.withValues(alpha: 0.3),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
                   onPressed: () async {
-                    // Update Firebase with the new profile using merge: true so we don't overwrite the room!
+                    final String finalName = nameController.text.trim();
+                    
                     await FirebaseFirestore.instance
                         .collection('rooms')
                         .doc(widget.roomCode)
                         .set({
                           'playerProfiles': {
                             widget.playerDeviceId: {
-                              'name': newName.isEmpty ? 'Guest' : newName,
+                              'name': finalName.isEmpty ? 'Guest' : finalName,
                               'avatar': newAvatar,
                             },
                           },
@@ -206,7 +235,10 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
 
                     if (context.mounted) Navigator.pop(context);
                   },
-                  child: const Text('SAVE'),
+                  child: const Text(
+                    'SAVE',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
