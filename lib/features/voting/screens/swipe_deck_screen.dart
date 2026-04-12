@@ -287,7 +287,9 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
                       onPressed: () async {
                         try {
-                          await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).delete();
+                          final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
+
+                          await roomRef.delete();
                         } catch (e) {
                           debugPrint("Error deleting room: $e");
                         }
