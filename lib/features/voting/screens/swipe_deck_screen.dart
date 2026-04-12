@@ -326,22 +326,11 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         elevation: 0,
         centerTitle: true,
         title: Row(
-          mainAxisSize: MainAxisSize.min, 
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.movie_filter_rounded, 
-              color: AppColors.primary,
-              size: 28,
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'VETO',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 26,
-                letterSpacing: 1.5, 
-              ),
+            Image.asset(
+              'assets/images/veto-logo.png',
+              height: 32,
             ),
           ],
         ),

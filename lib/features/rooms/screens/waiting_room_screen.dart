@@ -268,20 +268,9 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.movie_filter_rounded,
-              color: colorScheme.primary,
-              size: 28,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'VETO',
-              style: TextStyle(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 26,
-                letterSpacing: 1.5, 
-              ),
+            Image.asset(
+              'assets/images/veto-logo.png',
+              height: 32,
             ),
           ],
         ),
