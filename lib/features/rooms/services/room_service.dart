@@ -49,6 +49,16 @@ class RoomService {
       'connectedPlayers': [hostDeviceId], 
       // Set this room to officially "expire" 60 minutes from right now
       'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 60))),
+      
+      // NEW: Default Filter Settings so the room has a baseline!
+      'filterSettings': {
+        'minYear': 1970,
+        'maxYear': DateTime.now().year,
+        'minScore': 6.0,
+        'maxRuntime': 'Any Length',
+        'familyFriendly': false,
+        'languages': [],
+      }
     });
 
     return roomCode; 
