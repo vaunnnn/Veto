@@ -75,21 +75,10 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min, // Shrink-wraps the icon and text together
           children: [
-            Icon(
-              Icons.movie_filter_rounded,
-              color: colorScheme.primary,
-              size: 28,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'VETO',
-              style: TextStyle(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 26,
-                letterSpacing: 1.5,
-              ),
-            ),
+            Image.asset(
+              'assets/images/veto-logo.png',
+              height: 32,
+            )
           ],
         ),
       ),
