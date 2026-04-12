@@ -83,47 +83,89 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   Future<void> _fetchMovies() async {
     final String apiKey = dotenv.env['TMDB_API_KEY'] ?? ''; 
     
-    // --- NEW: THE GROUP GENRE MIXER ---
     Set<String> combinedGenres = {};
+    // NEW: Variables to hold our host's filters
+    Map<String, dynamic> filters = {};
 
     try {
-      // 1. Ask Firebase what everyone in the room picked
       final roomDoc = await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).get();
       
       if (roomDoc.exists) {
         final data = roomDoc.data()!;
         final Map<String, dynamic> profiles = data['playerProfiles'] ?? {};
+        
+        // NEW: Grab the filter settings from the database
+        filters = data['filterSettings'] ?? {};
 
-        // 2. Dump every single genre into our Set (which automatically removes duplicates!)
         profiles.forEach((deviceId, profile) {
           final List dynamicGenres = profile['genres'] ?? [];
           combinedGenres.addAll(dynamicGenres.map((g) => g.toString()));
         });
       }
     } catch (e) {
-      debugPrint("Error fetching room genres: $e");
+      debugPrint("Error fetching room data: $e");
     }
 
-    // 3. Fallback: If Firebase was too slow or empty, use the local user's genres just to be safe
     if (combinedGenres.isEmpty) {
       combinedGenres.addAll(widget.selectedGenres);
     }
 
-    // 4. Translate the massive group list into TMDB IDs separated by a PIPE (|) for "OR"
     String mappedIds = combinedGenres.map((g) => tmdbGenreIds[g]).where((id) => id != null).join('|');
+
+    // --- NEW: APPLYING THE HOST FILTERS TO THE URL ---
+    int minYear = filters['minYear'] ?? 1970;
+    int maxYear = filters['maxYear'] ?? DateTime.now().year;
+    double minScore = (filters['minScore'] ?? 6.0).toDouble();
+    String runtime = filters['maxRuntime'] ?? 'Any Length';
+    bool familyFriendly = filters['familyFriendly'] ?? false;
+    
+    // THE FIX: safely extract the list of languages
+    List<dynamic> rawLanguages = filters['languages'] ?? [];
+    List<String> selectedLanguages = rawLanguages.map((e) => e.toString()).toList();
+
+    // Build the base URL
+    String urlStr = 'https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&with_genres=$mappedIds&sort_by=popularity.desc&page=$currentPage';
+    
+    urlStr += '&vote_count.gte=150&vote_average.gte=$minScore';
+    urlStr += '&primary_release_date.gte=$minYear-01-01&primary_release_date.lte=$maxYear-12-31';
+    
+    if (runtime != 'Any Length') {
+      int minutes = runtime == 'Under 90 Mins' ? 90 : runtime == 'Under 2 Hours' ? 120 : 150;
+      urlStr += '&with_runtime.lte=$minutes';
+    }
+
+    if (familyFriendly) {
+      urlStr += '&certification_country=US&certification.lte=PG-13';
+    }
+
+    // 5. Spoken Language (Multi-Select Logic)
+    final Map<String, String> tmdbLanguageCodes = {
+      'Arabic': 'ar', 'Chinese': 'zh', 'English': 'en', 'French': 'fr',
+      'German': 'de', 'Hindi': 'hi', 'Italian': 'it', 'Japanese': 'ja',
+      'Korean': 'ko', 'Portuguese': 'pt', 'Russian': 'ru', 'Spanish': 'es',
+    };
+
+    if (selectedLanguages.isNotEmpty) {
+      // Convert their selected words ('French', 'Korean') into TMDB codes ('fr', 'ko')
+      List<String> codes = selectedLanguages
+          .where((lang) => tmdbLanguageCodes.containsKey(lang))
+          .map((lang) => tmdbLanguageCodes[lang]!)
+          .toList();
+          
+      if (codes.isNotEmpty) {
+        // Joins them with a pipe character for the API (e.g., fr|ko|en)
+        urlStr += '&with_original_language=${codes.join('|')}';
+      }
+    }
 
     // --- FETCH FROM TMDB ---
     try {
-      final url = Uri.parse(
-        'https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&with_genres=$mappedIds&sort_by=popularity.desc&page=$currentPage'
-      );
-      
+      final url = Uri.parse(urlStr);
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         
-        // FIX: Check if the widget is still alive before updating the UI
         if (mounted) {
           setState(() {
             movies.addAll(List<Map<String, dynamic>>.from(data['results']));
@@ -133,8 +175,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       }
     } catch (e) {
       debugPrint("Error fetching TMDB movies: $e");
-      
-      // FIX: Check if the widget is still alive before updating the UI
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -336,7 +376,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       body: isLoading 
         ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
         : movies.isEmpty 
-            ? const Center(child: Text("No movies found. Check your API key!"))
+            ? _buildEmptyState() // <-- THE FIX: Calls our new premium UI
             : Column(
                 children: [
                   // 1. Reduced top spacing to lift the card up slightly
@@ -427,6 +467,86 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
           ] : [],
         ),
         child: Center(child: Icon(icon, color: iconColor, size: size * 0.45)),
+      ),
+    );
+  }
+
+  // --- 🎬 EMPTY STATE UI ---
+  Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.movie_filter_rounded, size: 64, color: AppColors.primary),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              "THE VAULT IS EMPTY",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "Your group's genres combined with the room's filters resulted in zero matches.\n\nTry to loosen the rules!",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.6,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 40),
+            
+            // Escape Hatch Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  // Deleting the room triggers the existing listener in the WaitingRoom/GenreScreen 
+                  // to automatically kick all other players back to the home screen gracefully!
+                  try {
+                    await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).delete();
+                  } catch (e) {
+                    debugPrint("Error ending session: $e");
+                  }
+                  
+                  if (mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LandingScreen()), 
+                      (route) => false,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                label: const Text(
+                  "END SESSION & RESTART",
+                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
