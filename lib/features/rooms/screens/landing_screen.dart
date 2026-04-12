@@ -4,17 +4,22 @@ import 'join_room_screen.dart';
 import 'waiting_room_screen.dart';
 import '../services/room_service.dart';
 
-class LandingScreen extends StatelessWidget {
+class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
+
+  @override
+  State<LandingScreen> createState() => _LandingScreenState();
+}
+
+class _LandingScreenState extends State<LandingScreen> {
+  // NEW: A variable to track if the database is currently thinking
+  bool _isCreatingRoom = false;
 
   @override
   Widget build(BuildContext context) {
     final roomService = RoomService();
-    // For now, we will use a dummy device ID until we build authentication
     final String myDeviceId = "device_${DateTime.now().millisecondsSinceEpoch}";
     final size = MediaQuery.of(context).size;
-
-    // NEW: Detect if the phone is in Dark Mode
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -107,6 +112,7 @@ class LandingScreen extends StatelessWidget {
                         const SizedBox(height: 40),
 
                         // Button 1: Create Room (Red)
+                        // Button 1: Create Room (Red)
                         SizedBox(
                           width: double.infinity,
                           height: 60,
@@ -119,41 +125,74 @@ class LandingScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            onPressed: () async {
-                              // 1. Create the room in the database
-                              String newRoomCode = await roomService.createRoom(
-                                myDeviceId,
-                              );
+                            // THE FIX: If _isCreatingRoom is true, set onPressed to null to completely disable the button!
+                            onPressed: _isCreatingRoom
+                                ? null
+                                : () async {
+                                    // 1. Instantly update the UI to show the loading spinner
+                                    setState(() {
+                                      _isCreatingRoom = true;
+                                    });
 
-                              // 2. Navigate to the Waiting Room and pass the code
-                              if (context.mounted) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => WaitingRoomScreen(
-                                      roomCode: newRoomCode,
-                                      isHost: true,
-                                      playerDeviceId: myDeviceId,
+                                    try {
+                                      // 2. Create the room in the database
+                                      String newRoomCode = await roomService
+                                          .createRoom(myDeviceId);
+
+                                      // 3. Navigate to the Waiting Room
+                                      if (context.mounted) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                WaitingRoomScreen(
+                                                  roomCode: newRoomCode,
+                                                  isHost: true,
+                                                  playerDeviceId: myDeviceId,
+                                                ),
+                                          ),
+                                        ).then((_) {
+                                          // Optional: Reset the loading state if the user taps the back button to return to this screen
+                                          if (mounted) {
+                                            setState(
+                                              () => _isCreatingRoom = false,
+                                            );
+                                          }
+                                        });
+                                      }
+                                    } catch (e) {
+                                      // If the database fails (e.g., no internet), turn the button back on
+                                      debugPrint("Error creating room: $e");
+                                      if (mounted) {
+                                        setState(() => _isCreatingRoom = false);
+                                      }
+                                    }
+                                  },
+
+                            child: _isCreatingRoom
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 3,
                                     ),
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'CREATE ROOM',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.0,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              }
-                            },
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'CREATE ROOM',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -456,20 +495,27 @@ class LandingScreen extends StatelessWidget {
   }
 
   // Helper widget for the "How it Works" cards
-  Widget _buildStepCard({required IconData icon, required String title, required String description, required bool isDark}) {
+  Widget _buildStepCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool isDark,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark 
-            ? const Color(0xFF1A1A1A).withValues(alpha: 0.4) // 40% opacity in dark mode
-            : Colors.white.withValues(alpha: 0.7),           // 70% opacity in light mode
+        color: isDark
+            ? const Color(0xFF1A1A1A).withValues(
+                alpha: 0.4,
+              ) // 40% opacity in dark mode
+            : Colors.white.withValues(alpha: 0.7), // 70% opacity in light mode
         borderRadius: BorderRadius.circular(20),
-        
+
         // Lowered the border opacity as well so it doesn't look too harsh against the GIF
         border: Border.all(
-          color: isDark 
-              ? Colors.grey.shade800.withValues(alpha: 0.5) 
+          color: isDark
+              ? Colors.grey.shade800.withValues(alpha: 0.5)
               : Colors.grey.shade300.withValues(alpha: 0.6),
         ),
       ),
@@ -490,7 +536,7 @@ class LandingScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87, 
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 12),
@@ -498,7 +544,7 @@ class LandingScreen extends StatelessWidget {
             description,
             style: TextStyle(
               fontSize: 15,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700, 
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
               height: 1.5,
             ),
           ),
