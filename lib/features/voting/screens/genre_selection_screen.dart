@@ -106,9 +106,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
               for (String deviceId in connectedPlayers) {
                 final profile = profiles[deviceId] ?? {};
                 final String name = profile['name'] ?? 'Guest';
-                final String avatar =
-                    profile['avatar'] ??
-                    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop';
+                final String avatar = profile['avatar'] ?? 'assets/images/default-pic-1.png';
                 final bool isReady =
                     profile.containsKey('genres') &&
                     (profile['genres'] as List).isNotEmpty;
@@ -139,8 +137,16 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundImage: NetworkImage(avatar),
                           radius: 20, // Slightly smaller avatar
+                          backgroundColor: Colors.grey.shade800,
+                          onBackgroundImageError: (exception, stackTrace) {
+                            // Log the error for debugging
+                            debugPrint('Failed to load image: $exception');
+                          },
+                          // THE FIX: Switch between NetworkImage and AssetImage automatically
+                          backgroundImage: avatar.startsWith('http')
+                              ? NetworkImage(avatar) as ImageProvider
+                              : AssetImage(avatar),
                         ),
                         const SizedBox(
                           width: 12,

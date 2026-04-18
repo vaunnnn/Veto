@@ -47,8 +47,18 @@ class _LandingScreenState extends State<LandingScreen> {
           ),
 
           // 3. YOUR EXISTING UI
-          SafeArea(
-            child: SingleChildScrollView(
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              centerTitle: true,
+              title: Image.asset(
+                'assets/images/veto-logo.png',
+                height: 32, // Standard height for logos in the AppBar
+              ),
+            ),
+            body: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

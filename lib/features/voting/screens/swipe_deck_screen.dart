@@ -393,6 +393,9 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                       // 2. Added bottom padding to shrink the height of the card
                       padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 32.0), 
                       allowedSwipeDirection: const AllowedSwipeDirection.symmetric(horizontal: true),
+                      numberOfCardsDisplayed: 2,
+                      scale: 0.95,
+                      backCardOffset: const Offset(0, -15),
                       cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
                         return _ScrollableMovieCard(movie: movies[index]);
                       },
