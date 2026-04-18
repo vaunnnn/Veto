@@ -458,7 +458,10 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                       scale: 0.95,
                       backCardOffset: const Offset(0, -15),
                       cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
-                        return _ScrollableMovieCard(movie: movies[index]);
+                        return _ScrollableMovieCard(
+                          key: ValueKey(movies[index]['id']), 
+                          movie: movies[index]
+                        );
                       },
                     ),
                   ),
@@ -622,7 +625,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
 class _ScrollableMovieCard extends StatefulWidget {
   final Map<String, dynamic> movie;
 
-  const _ScrollableMovieCard({required this.movie});
+  // THE FIX: Added 'super.key' so it knows how to accept the ValueKey!
+  const _ScrollableMovieCard({super.key, required this.movie});
 
   @override
   State<_ScrollableMovieCard> createState() => _ScrollableMovieCardState();
@@ -632,11 +636,82 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
   late ScrollController _scrollController;
   double _scrollProgress = 0.0;
 
+  // NEW: State variables for our extra details
+  String _director = '';
+  List<String> _cast = [];
+  List<Map<String, String>> _reviews = [];
+  bool _isLoadingDetails = true;
+
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
+    
+    // NEW: Fetch the juicy details the moment this card is created in the background!
+    _fetchAdditionalDetails();
+  }
+
+  // --- THE LAZY LOADER ---
+  Future<void> _fetchAdditionalDetails() async {
+    final String apiKey = dotenv.env['TMDB_API_KEY'] ?? '';
+    final movieId = widget.movie['id'];
+    if (movieId == null) return;
+
+    // TMDB allows us to append credits and reviews into a single, blazing-fast API call
+    final url = Uri.parse('https://api.themoviedb.org/3/movie/$movieId?api_key=$apiKey&append_to_response=credits,reviews');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        // 1. Extract Director
+        final crew = data['credits']?['crew'] as List? ?? [];
+        final directorObj = crew.firstWhere((member) => member['job'] == 'Director', orElse: () => null);
+        final directorName = directorObj != null ? directorObj['name'] : 'Unknown';
+
+        // 2. Extract Top 4 Cast Members
+        final castList = data['credits']?['cast'] as List? ?? [];
+        final topCast = castList.take(4).map((c) => c['name'].toString()).toList();
+
+        // 3. Extract Top 2 Reviews
+        final reviewList = data['reviews']?['results'] as List? ?? [];
+        final topReviews = reviewList.take(2).map((r) => {
+          'author': r['author'].toString(),
+          'content': r['content'].toString(),
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _director = directorName;
+            _cast = topCast;
+            _reviews = topReviews;
+            _isLoadingDetails = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching details: $e");
+      if (mounted) setState(() => _isLoadingDetails = false);
+    }
+  }
+
+  // --- THE FIX: WATCH FOR NEW MOVIES ---
+  @override
+  void didUpdateWidget(_ScrollableMovieCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the swiper recycles this card for a NEW movie, clear the slate and fetch again!
+    if (oldWidget.movie['id'] != widget.movie['id']) {
+      setState(() {
+        _isLoadingDetails = true;
+        _director = '';
+        _cast = [];
+        _reviews = [];
+        _scrollProgress = 0.0; // Resets the blur effect too!
+      });
+      _fetchAdditionalDetails();
+    }
   }
 
   void _onScroll() {
@@ -756,6 +831,72 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
                                 style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5),
                               ),
                               
+                              const SizedBox(height: 32),
+
+                              // --- THE NEW DETAILS SECTION ---
+                              if (_isLoadingDetails)
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(24.0),
+                                    child: SizedBox(
+                                      height: 24, width: 24,
+                                      child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                                    ),
+                                  ),
+                                )
+                              else ...[
+                                
+                                // DIRECTOR
+                                _buildSectionTitle('DIRECTOR'),
+                                const SizedBox(height: 4),
+                                Text(_director, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 20),
+
+                                // CAST
+                                if (_cast.isNotEmpty) ...[
+                                  _buildSectionTitle('MAIN CAST'),
+                                  const SizedBox(height: 4),
+                                  Text(_cast.join(', '), style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.4)),
+                                  const SizedBox(height: 24),
+                                ],
+
+                                // REVIEWS
+                                if (_reviews.isNotEmpty) ...[
+                                  _buildSectionTitle('FEATURED REVIEWS'),
+                                  const SizedBox(height: 12),
+                                  ..._reviews.map((review) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12.0),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.person, color: AppColors.primary, size: 14),
+                                              const SizedBox(width: 6),
+                                              Text(review['author']!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            review['content']!,
+                                            maxLines: 5, 
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13, height: 1.4),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )),
+                                ],
+                              ],
+                              
                               const SizedBox(height: 60),
                             ],
                           ),
@@ -769,6 +910,19 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
           ),
         );
       }
+    );
+  }
+
+  // A tiny helper to make those section titles look sleek and uniform
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.5), 
+        fontSize: 10, 
+        fontWeight: FontWeight.bold, 
+        letterSpacing: 1.5
+      ),
     );
   }
 
