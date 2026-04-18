@@ -76,8 +76,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      // This allows the gradient to flow behind the AppBar
       extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
