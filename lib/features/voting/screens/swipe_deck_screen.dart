@@ -32,7 +32,9 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   String? _lastMatchedMovieId;
   List<Map<String, dynamic>> movies = [];
   bool isLoading = true;
-  int currentPage = 1; 
+  int currentPage = 1;
+  bool _isMatchOverlayOpen = false; 
+  int _lastKeepSwipingTrigger = 0;
 
   final Map<String, String> tmdbGenreIds = {
     'Action': '28', 'Adventure': '12', 'Animation': '16', 'Biography': '36', 
@@ -68,12 +70,41 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       
       final data = snapshot.data() as Map<String, dynamic>;
       
+      // --- NEW: THE "KEEP SWIPING" SYNC LOGIC ---
+      // If the latestMatch field is gone, but our overlay is open, someone cleared it!
+      if (!data.containsKey('latestMatch') && _isMatchOverlayOpen) {
+        if (mounted) Navigator.pop(context); // Drop the overlay for everyone!
+        
+        _isMatchOverlayOpen = false;
+        _lastMatchedMovieId = null; // Reset so the next match works
+
+        // Check if we should show the notification
+        final currentTrigger = data['keepSwipingTrigger'] ?? 0;
+        if (currentTrigger > _lastKeepSwipingTrigger) {
+          _lastKeepSwipingTrigger = currentTrigger;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Someone voted to keep swiping! Back to the deck 🍿', 
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              backgroundColor: AppColors.primary,
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      }
+      // ------------------------------------------
+
       if (data.containsKey('latestMatch')) {
         final match = data['latestMatch'];
         final String matchId = match['id'].toString();
 
         if (_lastMatchedMovieId != matchId) {
           _lastMatchedMovieId = matchId;
+          _isMatchOverlayOpen = true; // Mark the overlay as open!
           _showMatchOverlay(match);
         }
       }
@@ -293,58 +324,88 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         );
       },
       pageBuilder: (context, anim1, anim2) {
-        return Material(
-          color: Colors.transparent,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-              child: Column(
-                children: [
-                  const Text("THE JURY HAS DECIDED...", style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1.0),
-                      children: [
-                        TextSpan(text: "It's a "),
-                        TextSpan(text: "Match!", style: TextStyle(color: AppColors.primary)),
-                      ],
+        // THE FIX: PopScope prevents the Android hardware back button from closing 
+        // the dialog locally without telling Firebase, which breaks the sync!
+        return PopScope(
+          canPop: false, 
+          child: Material(
+            color: Colors.transparent,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+                child: Column(
+                  children: [
+                    const Text("THE JURY HAS DECIDED...", style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1.0),
+                        children: [
+                          TextSpan(text: "It's a "),
+                          TextSpan(text: "Match!", style: TextStyle(color: AppColors.primary)),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // --- THE MAGIC ONE-LINER ---
-                  Expanded(
-                    child: _ScrollableMovieCard(movie: movie),
-                  ),
-                  // ---------------------------
-                  
-                  const SizedBox(height: 30),
-                  
-                  SizedBox(
-                    width: double.infinity, height: 56,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                      onPressed: () async {
-                        try {
-                          final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
-
-                          await roomRef.delete();
-                        } catch (e) {
-                          debugPrint("Error deleting room: $e");
-                        }
-                        if (!context.mounted) return;
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LandingScreen()), 
-                          (route) => false,
-                        );
-                      },
-                      icon: const Icon(Icons.home, color: Colors.white),
-                      label: const Text("End Session & Go Home", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 24),
+                    
+                    Expanded(
+                      child: _ScrollableMovieCard(movie: movie),
                     ),
-                  ),
-                ],
+                    
+                    const SizedBox(height: 30),
+                    
+                    // --- NEW: KEEP SWIPING BUTTON ---
+                    SizedBox(
+                      width: double.infinity, height: 56,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                        onPressed: () async {
+                          try {
+                            // Deleting 'latestMatch' triggers the listener to close the overlay for everyone
+                            await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
+                              'latestMatch': FieldValue.delete(),
+                              'keepSwipingTrigger': DateTime.now().millisecondsSinceEpoch,
+                            });
+                          } catch (e) {
+                            debugPrint("Error keeping swiping: $e");
+                          }
+                        },
+                        icon: const Icon(Icons.swipe_rounded, color: Colors.white, size: 20),
+                        label: const Text("KEEP SWIPING", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // --------------------------------
+                    
+                    // --- EXISTING END SESSION BUTTON ---
+                    SizedBox(
+                      width: double.infinity, height: 56,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                        onPressed: () async {
+                          try {
+                            final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
+                            await roomRef.delete();
+                          } catch (e) {
+                            debugPrint("Error deleting room: $e");
+                          }
+                          if (!context.mounted) return;
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LandingScreen()), 
+                            (route) => false,
+                          );
+                        },
+                        icon: const Icon(Icons.home, color: Colors.white, size: 20),
+                        label: const Text("END SESSION & GO HOME", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
