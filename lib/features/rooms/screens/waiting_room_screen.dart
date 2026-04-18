@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -770,25 +771,35 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              widget.roomCode,
-                                              style: TextStyle(
-                                                fontSize: 28,
-                                                fontWeight: FontWeight.w900,
-                                                color: colorScheme.onSurface,
-                                              ),
+                                          GestureDetector(
+                                            onTap: () {
+                                              Clipboard.setData(ClipboardData(text: widget.roomCode));
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Room code copied to clipboard!'),
+                                                  backgroundColor: Colors.green,
+                                                ),
+                                              );
+                                            },
+                                            child: Row(
+                                              children: [
+                                                Text(
+                                                  widget.roomCode,
+                                                  style: TextStyle(
+                                                    fontSize: 28,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Icon(
+                                                  Icons.copy,
+                                                  color: colorScheme.onSurface.withOpacity(0.5),
+                                                  size: 20,
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(width: 12),
-                                            Icon(
-                                              Icons.copy,
-                                              color: colorScheme.onSurface
-                                                  .withValues(alpha: 0.5),
-                                              size: 20,
-                                            ),
-                                          ],
-                                        ),
+                                          ),
                                       ],
                                     ),
                                   ),
