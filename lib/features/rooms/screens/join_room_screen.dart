@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'waiting_room_screen.dart';
-import '../services/room_service.dart';
+import 'package:veto/features/rooms/screens/waiting_room_screen.dart';
+import 'package:veto/features/rooms/services/room_service.dart';
 
 class JoinRoomScreen extends StatefulWidget {
   const JoinRoomScreen({super.key});
@@ -12,20 +12,34 @@ class JoinRoomScreen extends StatefulWidget {
 class _JoinRoomScreenState extends State<JoinRoomScreen> {
   final TextEditingController _codeController = TextEditingController();
   final RoomService _roomService = RoomService();
+  final FocusNode _focusNode = FocusNode();
   bool _isLoading = false;
 
   // Dummy device ID for testing
   final String myDeviceId = "device_${DateTime.now().millisecondsSinceEpoch}";
 
   @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus && _codeController.text.isEmpty) {
+        _codeController.text = 'VETO-';
+        _codeController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _codeController.text.length));
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _codeController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   void _handleJoin() async {
     final code = _codeController.text.trim().toUpperCase();
-    if (code.isEmpty) return;
+    if (code.length < 5) return; // Basic validation
 
     setState(() => _isLoading = true);
 
@@ -39,7 +53,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
         MaterialPageRoute(
           builder: (context) => WaitingRoomScreen(
             roomCode: code,
-            playerDeviceId: myDeviceId, // <-- Add this!
+            playerDeviceId: myDeviceId,
           ),
         ),
       );
@@ -96,7 +110,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.15),
+                    Colors.black.withOpacity(0.15),
                     Colors.transparent,
                   ],
                 ),
@@ -136,8 +150,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                             style: TextStyle(
                               fontSize: 14,
                               height: 1.4,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.6,
+                              color: colorScheme.onSurface.withOpacity(
+                                0.6,
                               ),
                             ),
                           ),
@@ -155,7 +169,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
+                                color: Colors.black.withOpacity(0.03),
                                 blurRadius: 24,
                                 offset: const Offset(0, 8),
                               ),
@@ -169,8 +183,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.5,
+                                  color: colorScheme.onSurface.withOpacity(
+                                    0.5,
                                   ),
                                 ),
                               ),
@@ -186,6 +200,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                 ),
                                 child: TextField(
                                   controller: _codeController,
+                                  focusNode: _focusNode,
                                   textAlign: TextAlign.center,
                                   textCapitalization:
                                       TextCapitalization.characters,
@@ -193,17 +208,16 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                     fontSize: 22,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 4.0,
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.8,
+                                    color: colorScheme.primary.withOpacity(
+                                      0.8,
                                     ),
                                   ),
                                   decoration: InputDecoration(
-                                    hintText: 'V E T O - X X X X',
+                                    hintText: 'VETO-XXXX',
                                     hintStyle: TextStyle(
-                                      // 2. DYNAMIC COLOR: Adapts visibility based on Light/Dark Mode
                                       color: theme.brightness == Brightness.light
-                                          ? colorScheme.primary.withValues(alpha: 0.2)
-                                          : colorScheme.onSurface.withValues(alpha: 0.4),
+                                          ? colorScheme.primary.withOpacity(0.2)
+                                          : colorScheme.onSurface.withOpacity(0.4),
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 2.0,
                                       fontSize: 20,
@@ -266,7 +280,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                   child: Text(
                     'Lost your code? Contact the host of your session.',
                     style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.4),
+                      color: colorScheme.onSurface.withOpacity(0.4),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
