@@ -248,6 +248,392 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     );
   }
 
+  // --- 3. THE HOST SETTINGS MODAL ---
+  void _showHostSettingsModal() async {
+    final doc = await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).get();
+    final currentSettings = doc.data()?['filterSettings'] ?? {};
+
+    double minYear = (currentSettings['minYear'] ?? 1970).toDouble();
+    double maxYear = (currentSettings['maxYear'] ?? DateTime.now().year).toDouble();
+    double minScore = (currentSettings['minScore'] ?? 6.0).toDouble();
+    String maxRuntime = currentSettings['maxRuntime'] ?? 'Any Length';
+    bool familyFriendly = currentSettings['familyFriendly'] ?? false;
+    List<dynamic> rawLangs = currentSettings['languages'] ?? [];
+    List<String> selectedLanguages = rawLangs.map((e) => e.toString()).toList();
+
+    final List<String> availableLanguages = [
+      'Arabic', 'Chinese', 'English', 'French', 'German', 'Hindi', 
+      'Italian', 'Japanese', 'Korean', 'Portuguese', 'Russian', 'Spanish'
+    ];
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, 
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final bgColor = isDark ? const Color(0xFF121212) : Colors.white;
+            final textColor = isDark ? Colors.white : Colors.black87;
+            final subtleColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+
+            String scoreBadgeText = "ANYTHING GOES";
+            if (minScore >= 8.0) scoreBadgeText = "CRITICALLY ACCLAIMED";
+            else if (minScore >= 7.0) scoreBadgeText = "CERTIFIED GOOD";
+            else if (minScore >= 5.0) scoreBadgeText = "HIT OR MISS";
+
+            return Container(
+              // THE FIX: Removed the hard-coded height so the modal perfectly hugs its contents
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                // THE FIX: Tells the column to only take up as much space as it needs
+                mainAxisSize: MainAxisSize.min, 
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  // Drag Handle
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Header Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Host Settings", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -0.5)),
+                          const SizedBox(height: 4),
+                          Text("Refine the room's film pool", style: TextStyle(fontSize: 14, color: subtleColor)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  Divider(color: subtleColor.withValues(alpha: 0.2)),
+                  const SizedBox(height: 24),
+
+                  // --- SLIDER 1: RELEASE YEAR ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("RELEASE YEAR", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: subtleColor)),
+                      Text("${minYear.toInt()} — ${maxYear.toInt()}", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: Theme.of(context).colorScheme.primary,
+                      inactiveTrackColor: subtleColor.withValues(alpha: 0.2),
+                      thumbColor: Colors.white,
+                      trackHeight: 6.0,
+                    ),
+                    child: RangeSlider(
+                      values: RangeValues(minYear, maxYear),
+                      min: 1970, max: DateTime.now().year.toDouble(),
+                      divisions: DateTime.now().year - 1970,
+                      onChanged: (RangeValues values) {
+                        setModalState(() {
+                          minYear = values.start;
+                          maxYear = values.end;
+                        });
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // --- SLIDER 2: MINIMUM SCORE ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("MINIMUM SCORE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: subtleColor)),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                            child: Text(scoreBadgeText, style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text("${minScore.toStringAsFixed(1)}+", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                        ],
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: Theme.of(context).colorScheme.primary,
+                      inactiveTrackColor: subtleColor.withValues(alpha: 0.2),
+                      thumbColor: Colors.white,
+                      trackHeight: 6.0,
+                      tickMarkShape: SliderTickMarkShape.noTickMark,
+                    ),
+                    child: Slider(
+                      value: minScore,
+                      min: 1.0, max: 10.0,
+                      divisions: 18, 
+                      onChanged: (value) => setModalState(() => minScore = value),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // --- DROPDOWN: MAXIMUM RUNTIME ---
+                  Text("MAXIMUM RUNTIME", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: subtleColor)),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 56,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      // ... rest of your existing runtime dropdown code
+                      color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: maxRuntime,
+                        isExpanded: true,
+                        dropdownColor: isDark ? Colors.grey.shade900 : Colors.white,
+                        icon: Icon(Icons.keyboard_arrow_down_rounded, color: subtleColor),
+                        items: ['Any Length', 'Under 2.5 Hours', 'Under 2 Hours', 'Under 90 Mins'].map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value, style: TextStyle(fontWeight: FontWeight.w600, color: textColor)),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) => setModalState(() => maxRuntime = newValue!),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // --- SEGMENTED CHIPS: AGE RATING ---
+                  Text("AGE RATING", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: subtleColor)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setModalState(() => familyFriendly = true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: familyFriendly ? Theme.of(context).colorScheme.primary : (isDark ? Colors.grey.shade900 : Colors.grey.shade100),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Center(child: Text("Family Friendly", style: TextStyle(fontWeight: FontWeight.bold, color: familyFriendly ? Colors.white : textColor))),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setModalState(() => familyFriendly = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              // THE FIX: Lights up red when 'familyFriendly' is false!
+                              color: !familyFriendly ? Theme.of(context).colorScheme.primary : (isDark ? Colors.grey.shade900 : Colors.grey.shade100),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            // THE FIX: Turns the text white when active
+                            child: Center(child: Text("Anything Goes", style: TextStyle(fontWeight: FontWeight.bold, color: !familyFriendly ? Colors.white : textColor))),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                // --- MULTI-SELECT: ORIGINAL LANGUAGE ---
+                  Text("ORIGINAL LANGUAGE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: subtleColor)),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      await showDialog(
+                        context: context,
+                        builder: (context) {
+                          return StatefulBuilder(
+                            builder: (context, setDialogState) {
+                              final isDialogDark = Theme.of(context).brightness == Brightness.dark;
+                              final dialogBg = isDialogDark ? Colors.grey.shade900 : Colors.white;
+                              final dialogText = isDialogDark ? Colors.white : Colors.black87;
+                              final dialogSubtle = isDialogDark ? Colors.grey.shade500 : Colors.grey.shade400;
+
+                              // THE FIX: Swapped AlertDialog for a custom Dialog to get perfect margin alignment!
+                              return Dialog(
+                                backgroundColor: dialogBg,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                                child: Padding(
+                                  // This 24px padding locks EVERYTHING (Title, List, Button) into perfect vertical alignment
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      
+                                      // 1. THE HEADER ROW
+                                      Row(
+                                        children: [
+                                          Text("Select Languages", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: dialogText)),
+                                          const Spacer(),
+                                          // Clear All Button
+                                          GestureDetector(
+                                            onTap: () => setDialogState(() => selectedLanguages.clear()),
+                                            child: Text("Clear All", style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          // THE FIX: The new 'X' Close Button
+                                          GestureDetector(
+                                            onTap: () => Navigator.pop(context),
+                                            child: CircleAvatar(
+                                              backgroundColor: isDialogDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                                              radius: 14,
+                                              child: Icon(Icons.close, color: dialogText, size: 14),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      
+                                      // 2. THE CHECKLIST
+                                      SizedBox(
+                                        height: MediaQuery.of(context).size.height * 0.4, 
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          physics: const BouncingScrollPhysics(),
+                                          itemCount: availableLanguages.length,
+                                          itemBuilder: (context, index) {
+                                            final lang = availableLanguages[index];
+                                            return CheckboxListTile(
+                                              // THE FIX: Removes the annoying default indentation from the checklist!
+                                              contentPadding: EdgeInsets.zero,
+                                              visualDensity: VisualDensity.compact,
+                                              activeColor: Theme.of(context).colorScheme.primary,
+                                              checkColor: Colors.white,
+                                              side: BorderSide(color: dialogSubtle.withValues(alpha: 0.5), width: 1.5),
+                                              title: Text(lang, style: TextStyle(color: dialogText, fontWeight: FontWeight.w600)),
+                                              value: selectedLanguages.contains(lang),
+                                              onChanged: (bool? checked) {
+                                                setDialogState(() {
+                                                  if (checked == true) {
+                                                    selectedLanguages.add(lang);
+                                                  } else {
+                                                    selectedLanguages.remove(lang);
+                                                  }
+                                                });
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+
+                                      // 3. THE "DONE" BUTTON
+                                      // THE FIX: Styled to match the "Apply" button, but smaller (48px height vs 60px)
+                                      SizedBox(
+                                        width: double.infinity, 
+                                        height: 48,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Theme.of(context).colorScheme.primary,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                                            elevation: 0,
+                                          ),
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text("DONE", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                                        ),
+                                      ),
+
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                      setModalState(() {}); 
+                    },
+                    child: Container(
+                      height: 56, 
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            selectedLanguages.isEmpty 
+                                ? "Any Language" 
+                                : "${selectedLanguages.length} Selected",
+                            style: TextStyle(fontWeight: FontWeight.w600, color: textColor),
+                          ),
+                          Icon(Icons.keyboard_arrow_down_rounded, color: subtleColor),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // THE FIX: Bumped up from 40 to 80 to get that perfect half-measure spacing!
+                  const SizedBox(height: 80),
+
+                  // --- SUBMIT BUTTON ---
+                  SizedBox(
+                    width: double.infinity, height: 60,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).set({
+                          'filterSettings': {
+                            'minYear': minYear.toInt(),
+                            'maxYear': maxYear.toInt(),
+                            'minScore': minScore,
+                            'maxRuntime': maxRuntime,
+                            'familyFriendly': familyFriendly,
+                            'languages': selectedLanguages,
+                          }
+                        }, SetOptions(merge: true));
+
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      child: const Text("APPLY TO ROOM", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            );
+          },
+        );
+      }
+    );
+  }
+
   @override
   @override
   Widget build(BuildContext context) {
@@ -274,6 +660,21 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
             ),
           ],
         ),
+        // NEW: The Host Settings Icon
+        actions: [
+          if (widget.isHost)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
+                icon: const Icon(Icons.tune_rounded),
+                color: colorScheme.primary,
+                splashColor: colorScheme.primary.withValues(alpha: 0.1),
+                onPressed: () {
+                  _showHostSettingsModal();
+                },
+              ),
+            ),
+        ],
       ),
       // We still use StreamBuilder to draw the UI live
       body: StreamBuilder<DocumentSnapshot>(
