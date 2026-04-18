@@ -362,7 +362,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("MINIMUM SCORE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: subtleColor)),
+                      Text("MINIMUM IMDB SCORE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: subtleColor)),
                       Row(
                         children: [
                           Container(
