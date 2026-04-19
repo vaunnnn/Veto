@@ -3,52 +3,12 @@ import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:veto/features/voting/screens/genre_selection_screen.dart';
+import 'package:veto/features/rooms/widgets/qr_code_widget.dart';
+import 'package:veto/features/rooms/widgets/player_card_widget.dart';
 import 'landing_screen.dart';
 
-class _SafeQRWidget extends StatelessWidget {
-  final String data;
-  final double size;
-  final Color color;
-  final Color backgroundColor;
 
-  const _SafeQRWidget({
-    required this.data,
-    required this.size,
-    required this.color,
-    required this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    try {
-      final qrPainter = QrPainter(
-        data: data,
-        version: QrVersions.auto,
-        dataModuleStyle: QrDataModuleStyle(color: color),
-        eyeStyle: QrEyeStyle(color: color),
-      );
-
-      return Container(
-        width: size,
-        height: size,
-        color: backgroundColor,
-        child: CustomPaint(size: Size(size, size), painter: qrPainter),
-      );
-    } catch (e) {
-      log('QR painting failed: $e');
-      return Container(
-        width: size,
-        height: size,
-        color: backgroundColor,
-        child: Center(
-          child: Icon(Icons.error_outline, size: size * 0.3, color: color),
-        ),
-      );
-    }
-  }
-}
 
 class WaitingRoomScreen extends StatefulWidget {
   final String roomCode;
@@ -157,12 +117,12 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
 
   // 1. A fun list of pre-made avatars
   final List<String> availableAvatars = [
-    'assets/images/default-pic-1.png',
-    'assets/images/default-pic-2.png',
-    'assets/images/default-pic-3.png',
-    'assets/images/default-pic-4.png',
-    'assets/images/default-pic-5.png',
-    'assets/images/default-pic-6.png',
+    'assets/images/default-pic-1.webp',
+    'assets/images/default-pic-2.webp',
+    'assets/images/default-pic-3.webp',
+    'assets/images/default-pic-4.webp',
+    'assets/images/default-pic-5.webp',
+    'assets/images/default-pic-6.webp',
   ];
 
   // 2. The Pop-up Dialog
@@ -327,7 +287,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                   color: bgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: _SafeQRWidget(
+                child: QrCodeWidget(
                   data: roomCode,
                   size: 200.0,
                   color: qrColor,
@@ -1126,7 +1086,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [Image.asset('assets/images/veto-logo.png', height: 32)],
+          children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
         ),
         // NEW: The Host Settings Icon
         actions: [
@@ -1335,15 +1295,26 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                 ? 'CHOOSING SNACKS...'
                                 : 'READY TO VETO';
 
-                            return _buildPlayerCard(
-                              currentProfile['name']!,
-                              currentProfile['avatar']!,
-                              status,
-                              isCurrentUser,
-                              widget.isHost,
-                              targetDeviceId,
-                              colorScheme,
-                              theme.brightness,
+                            return PlayerCard(
+                              name: currentProfile['name']!,
+                              imageUrl: currentProfile['avatar']!,
+                              status: status,
+                              isYou: isCurrentUser,
+                              isHostView: widget.isHost,
+                              targetDeviceId: targetDeviceId,
+                              roomCode: widget.roomCode,
+                              colorScheme: colorScheme,
+                              brightness: theme.brightness,
+                              onEditProfile: () => _showEditProfileDialog(currentProfile['name']!, currentProfile['avatar']!),
+                              onKick: () async {
+                                await FirebaseFirestore.instance
+                                    .collection('rooms')
+                                    .doc(widget.roomCode)
+                                    .update({
+                                      'connectedPlayers': FieldValue.arrayRemove([targetDeviceId]),
+                                      'playerProfiles.$targetDeviceId': FieldValue.delete(),
+                                    });
+                              },
                             );
                           },
                         ),
@@ -1469,169 +1440,5 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     );
   }
 
-  Widget _buildPlayerCard(
-    String name,
-    String imageUrl,
-    String status,
-    bool isYou,
-    bool isHostView, // NEW
-    String targetDeviceId, // NEW
-    ColorScheme colorScheme,
-    Brightness brightness,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: brightness == Brightness.light
-            ? Colors.white
-            : colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: imageUrl.startsWith('http')
-                        ? Image.network(
-                            imageUrl,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          )
-                        : Image.asset(
-                            imageUrl,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                  ),
 
-                  // THE NEW KICK BUTTON
-                  if (isHostView && !isYou)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: GestureDetector(
-                        onTap: () async {
-                          // Instantly removes them from the array AND deletes their profile data
-                          await FirebaseFirestore.instance
-                              .collection('rooms')
-                              .doc(widget.roomCode)
-                              .update({
-                                'connectedPlayers': FieldValue.arrayRemove([
-                                  targetDeviceId,
-                                ]),
-                                'playerProfiles.$targetDeviceId':
-                                    FieldValue.delete(),
-                              });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(
-                            6,
-                          ), // Slightly larger touch area
-                          decoration: BoxDecoration(
-                            // A sleek, semi-transparent dark background instead of bright red
-                            color: Colors.black.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons
-                                .person_remove_rounded, // Matches your reference image!
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  if (isYou)
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          'YOU',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (isYou)
-              Text(
-                'DISPLAY NAME',
-                style: TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface.withValues(alpha: 0.4),
-                  letterSpacing: 1.0,
-                ),
-              ),
-            if (!isYou) const SizedBox(height: 10),
-
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      color: colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isYou)
-                  GestureDetector(
-                    // Calls our new pop-up and passes in their current name/avatar
-                    onTap: () => _showEditProfileDialog(name, imageUrl),
-                    child: Icon(
-                      Icons.edit,
-                      size: 16,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              status,
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

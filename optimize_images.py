@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""
+Convert PNG images to WebP format for Flutter app optimization.
+"""
+
+import os
+import sys
+from pathlib import Path
+from PIL import Image
+
+def convert_png_to_webp(input_path: Path, output_path: Path, quality: int = 80):
+    """Convert PNG to WebP with specified quality."""
+    try:
+        img = Image.open(input_path)
+        # Convert RGBA to RGB if alpha channel exists but is not needed
+        if img.mode == 'RGBA':
+            # Check if alpha channel is actually used
+            if img.getchannel('A').getextrema() == (255, 255):
+                # Alpha is fully opaque, convert to RGB
+                img = img.convert('RGB')
+        
+        # Resize if dimensions are too large (max 1024px for genre icons)
+        max_dimension = 1024
+        if max(img.size) > max_dimension:
+            ratio = max_dimension / max(img.size)
+            new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+        
+        # Save as WebP
+        img.save(output_path, 'WEBP', quality=quality, method=6)
+        
+        original_size = input_path.stat().st_size
+        new_size = output_path.stat().st_size
+        reduction = (1 - new_size / original_size) * 100
+        
+        print(f"[OK] {input_path.name}: {original_size / 1024:.1f} KB -> {new_size / 1024:.1f} KB ({reduction:.1f}% reduction)")
+        return True
+        
+    except Exception as e:
+        print(f"[ERROR] Error converting {input_path.name}: {e}")
+        return False
+
+def main():
+    image_dir = Path("assets/images")
+    if not image_dir.exists():
+        print(f"Error: Directory {image_dir} not found")
+        sys.exit(1)
+    
+    # Find all PNG files
+    png_files = list(image_dir.glob("*.png"))
+    if not png_files:
+        print("No PNG files found")
+        sys.exit(0)
+    
+    print(f"Found {len(png_files)} PNG files")
+    print("Converting to WebP...")
+    
+    converted = 0
+    failed = 0
+    total_original_size = 0
+    total_new_size = 0
+    
+    for png_path in png_files:
+        # Determine if this is a background image (different quality setting)
+        is_background = "bg-" in png_path.name
+        quality = 85 if is_background else 80  # Higher quality for backgrounds
+        
+        webp_path = png_path.with_suffix('.webp')
+        
+        original_size = png_path.stat().st_size
+        total_original_size += original_size
+        
+        if convert_png_to_webp(png_path, webp_path, quality):
+            converted += 1
+            total_new_size += webp_path.stat().st_size
+        else:
+            failed += 1
+    
+    # Summary
+    print("\n" + "="*50)
+    print("CONVERSION SUMMARY")
+    print("="*50)
+    print(f"Total PNG files: {len(png_files)}")
+    print(f"Successfully converted: {converted}")
+    print(f"Failed: {failed}")
+    print(f"\nOriginal total size: {total_original_size / (1024*1024):.2f} MB")
+    print(f"New total size: {total_new_size / (1024*1024):.2f} MB")
+    
+    if total_original_size > 0:
+        total_reduction = (1 - total_new_size / total_original_size) * 100
+        print(f"Total reduction: {total_reduction:.1f}%")
+    
+    print("\nNext steps:")
+    print("1. Update image references in Dart files to use .webp extension")
+    print("2. Update pubspec.yaml assets section to include .webp files")
+    print("3. Consider deleting original .png files after verification")
+
+if __name__ == "__main__":
+    # Check if Pillow is installed
+    try:
+        from PIL import Image
+    except ImportError:
+        print("Error: Pillow library is required.")
+        print("Install it with: pip install Pillow")
+        sys.exit(1)
+    
+    main()
