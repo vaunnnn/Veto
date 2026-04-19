@@ -3,7 +3,6 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart'
-
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
@@ -17,7 +16,6 @@ import 'package:flutter/foundation.dart'
 /// );
 /// ```
 class DefaultFirebaseOptions {
-
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       throw UnsupportedError(
@@ -49,7 +47,7 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static FirebaseOptions  get android =>  FirebaseOptions(
+  static FirebaseOptions get android => FirebaseOptions(
     apiKey: dotenv.env['ANDROID_FIREBASE_API_KEY'] ?? '',
     appId: '1:813472636970:android:f17569373a9b269325e353',
     messagingSenderId: '813472636970',

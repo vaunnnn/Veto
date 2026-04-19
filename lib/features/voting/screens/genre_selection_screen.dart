@@ -106,7 +106,8 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
               for (String deviceId in connectedPlayers) {
                 final profile = profiles[deviceId] ?? {};
                 final String name = profile['name'] ?? 'Guest';
-                final String avatar = profile['avatar'] ?? 'assets/images/default-pic-1.png';
+                final String avatar =
+                    profile['avatar'] ?? 'assets/images/default-pic-1.png';
                 final bool isReady =
                     profile.containsKey('genres') &&
                     (profile['genres'] as List).isNotEmpty;

@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
-import 'package:veto/core/themes/app_colors.dart'; 
+import 'package:veto/core/themes/app_colors.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:ui'; 
+import 'dart:ui';
 import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:veto/features/rooms/screens/landing_screen.dart';
 
 class SwipeDeckScreen extends StatefulWidget {
   final Set<String> selectedGenres;
-  final String roomCode;         
-  final String playerDeviceId;   
+  final String roomCode;
+  final String playerDeviceId;
 
   const SwipeDeckScreen({
-    super.key, 
+    super.key,
     required this.selectedGenres,
     required this.roomCode,
     required this.playerDeviceId,
@@ -33,15 +34,28 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   List<Map<String, dynamic>> movies = [];
   bool isLoading = true;
   int currentPage = 1;
-  bool _isMatchOverlayOpen = false; 
+  bool _isMatchOverlayOpen = false;
   int _lastKeepSwipingTrigger = 0;
 
   final Map<String, String> tmdbGenreIds = {
-    'Action': '28', 'Adventure': '12', 'Animation': '16', 'Biography': '36', 
-    'Comedy': '35', 'Documentary': '99', 'Drama': '18', 'Family': '10751', 
-    'Fantasy': '14', 'History': '36', 'Horror': '27', 'Musical': '10402', 
-    'Mystery': '9648', 'Romance': '10749', 'Sci-Fi': '878', 'Sport': '99', 
-    'Thriller': '53', 'Western': '37',
+    'Action': '28',
+    'Adventure': '12',
+    'Animation': '16',
+    'Biography': '36',
+    'Comedy': '35',
+    'Documentary': '99',
+    'Drama': '18',
+    'Family': '10751',
+    'Fantasy': '14',
+    'History': '36',
+    'Horror': '27',
+    'Musical': '10402',
+    'Mystery': '9648',
+    'Romance': '10749',
+    'Sci-Fi': '878',
+    'Sport': '99',
+    'Thriller': '53',
+    'Western': '37',
   };
 
   // --- INIT & DISPOSE ---
@@ -49,12 +63,12 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   void initState() {
     super.initState();
     _fetchMovies();
-    _listenForMatches(); 
+    _listenForMatches();
   }
 
   @override
   void dispose() {
-    _matchSubscription?.cancel(); 
+    _matchSubscription?.cancel();
     controller.dispose();
     super.dispose();
   }
@@ -66,65 +80,74 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         .doc(widget.roomCode)
         .snapshots()
         .listen((snapshot) {
-      if (!snapshot.exists || !mounted) return;
-      
-      final data = snapshot.data() as Map<String, dynamic>;
-      
-      // --- NEW: THE "KEEP SWIPING" SYNC LOGIC ---
-      // If the latestMatch field is gone, but our overlay is open, someone cleared it!
-      if (!data.containsKey('latestMatch') && _isMatchOverlayOpen) {
-        if (mounted) Navigator.pop(context); // Drop the overlay for everyone!
-        
-        _isMatchOverlayOpen = false;
-        _lastMatchedMovieId = null; // Reset so the next match works
+          if (!snapshot.exists || !mounted) return;
 
-        // Check if we should show the notification
-        final currentTrigger = data['keepSwipingTrigger'] ?? 0;
-        if (currentTrigger > _lastKeepSwipingTrigger) {
-          _lastKeepSwipingTrigger = currentTrigger;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Someone voted to keep swiping! Back to the deck 🍿', 
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              backgroundColor: AppColors.primary,
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        }
-      }
-      // ------------------------------------------
+          final data = snapshot.data() as Map<String, dynamic>;
 
-      if (data.containsKey('latestMatch')) {
-        final match = data['latestMatch'];
-        final String matchId = match['id'].toString();
+          // --- NEW: THE "KEEP SWIPING" SYNC LOGIC ---
+          // If the latestMatch field is gone, but our overlay is open, someone cleared it!
+          if (!data.containsKey('latestMatch') && _isMatchOverlayOpen) {
+            if (mounted)
+              Navigator.pop(context); // Drop the overlay for everyone!
 
-        if (_lastMatchedMovieId != matchId) {
-          _lastMatchedMovieId = matchId;
-          _isMatchOverlayOpen = true; // Mark the overlay as open!
-          _showMatchOverlay(match);
-        }
-      }
-    });
+            _isMatchOverlayOpen = false;
+            _lastMatchedMovieId = null; // Reset so the next match works
+
+            // Check if we should show the notification
+            final currentTrigger = data['keepSwipingTrigger'] ?? 0;
+            if (currentTrigger > _lastKeepSwipingTrigger) {
+              _lastKeepSwipingTrigger = currentTrigger;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'Someone voted to keep swiping! Back to the deck 🍿',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  backgroundColor: AppColors.primary,
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
+            }
+          }
+          // ------------------------------------------
+
+          if (data.containsKey('latestMatch')) {
+            final match = data['latestMatch'];
+            final String matchId = match['id'].toString();
+
+            if (_lastMatchedMovieId != matchId) {
+              _lastMatchedMovieId = matchId;
+              _isMatchOverlayOpen = true; // Mark the overlay as open!
+              _showMatchOverlay(match);
+            }
+          }
+        });
   }
 
   Future<void> _fetchMovies() async {
-    final String apiKey = dotenv.env['TMDB_API_KEY'] ?? ''; 
-    
+    final String apiKey = dotenv.env['TMDB_API_KEY'] ?? '';
+
     Set<String> combinedGenres = {};
     // NEW: Variables to hold our host's filters
     Map<String, dynamic> filters = {};
 
     try {
-      final roomDoc = await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).get();
-      
+      final roomDoc = await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(widget.roomCode)
+          .get();
+
       if (roomDoc.exists) {
         final data = roomDoc.data()!;
         final Map<String, dynamic> profiles = data['playerProfiles'] ?? {};
-        
+
         // NEW: Grab the filter settings from the database
         filters = data['filterSettings'] ?? {};
 
@@ -141,7 +164,10 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       combinedGenres.addAll(widget.selectedGenres);
     }
 
-    String mappedIds = combinedGenres.map((g) => tmdbGenreIds[g]).where((id) => id != null).join('|');
+    String mappedIds = combinedGenres
+        .map((g) => tmdbGenreIds[g])
+        .where((id) => id != null)
+        .join('|');
 
     // --- NEW: APPLYING THE HOST FILTERS TO THE URL ---
     int minYear = filters['minYear'] ?? 1970;
@@ -149,19 +175,27 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     double minScore = (filters['minScore'] ?? 6.0).toDouble();
     String runtime = filters['maxRuntime'] ?? 'Any Length';
     bool familyFriendly = filters['familyFriendly'] ?? false;
-    
+
     // THE FIX: safely extract the list of languages
     List<dynamic> rawLanguages = filters['languages'] ?? [];
-    List<String> selectedLanguages = rawLanguages.map((e) => e.toString()).toList();
+    List<String> selectedLanguages = rawLanguages
+        .map((e) => e.toString())
+        .toList();
 
     // Build the base URL
-    String urlStr = 'https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&with_genres=$mappedIds&sort_by=popularity.desc&page=$currentPage';
-    
+    String urlStr =
+        'https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&with_genres=$mappedIds&sort_by=popularity.desc&page=$currentPage';
+
     urlStr += '&vote_count.gte=150&vote_average.gte=$minScore';
-    urlStr += '&primary_release_date.gte=$minYear-01-01&primary_release_date.lte=$maxYear-12-31';
-    
+    urlStr +=
+        '&primary_release_date.gte=$minYear-01-01&primary_release_date.lte=$maxYear-12-31';
+
     if (runtime != 'Any Length') {
-      int minutes = runtime == 'Under 90 Mins' ? 90 : runtime == 'Under 2 Hours' ? 120 : 150;
+      int minutes = runtime == 'Under 90 Mins'
+          ? 90
+          : runtime == 'Under 2 Hours'
+          ? 120
+          : 150;
       urlStr += '&with_runtime.lte=$minutes';
     }
 
@@ -171,9 +205,18 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
 
     // 5. Spoken Language (Multi-Select Logic)
     final Map<String, String> tmdbLanguageCodes = {
-      'Arabic': 'ar', 'Chinese': 'zh', 'English': 'en', 'French': 'fr',
-      'German': 'de', 'Hindi': 'hi', 'Italian': 'it', 'Japanese': 'ja',
-      'Korean': 'ko', 'Portuguese': 'pt', 'Russian': 'ru', 'Spanish': 'es',
+      'Arabic': 'ar',
+      'Chinese': 'zh',
+      'English': 'en',
+      'French': 'fr',
+      'German': 'de',
+      'Hindi': 'hi',
+      'Italian': 'it',
+      'Japanese': 'ja',
+      'Korean': 'ko',
+      'Portuguese': 'pt',
+      'Russian': 'ru',
+      'Spanish': 'es',
     };
 
     if (selectedLanguages.isNotEmpty) {
@@ -182,7 +225,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
           .where((lang) => tmdbLanguageCodes.containsKey(lang))
           .map((lang) => tmdbLanguageCodes[lang]!)
           .toList();
-          
+
       if (codes.isNotEmpty) {
         // Joins them with a pipe character for the API (e.g., fr|ko|en)
         urlStr += '&with_original_language=${codes.join('|')}';
@@ -196,10 +239,14 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         if (mounted) {
           setState(() {
-            movies.addAll(List<Map<String, dynamic>>.from(data['results']));
+            final newMovies = List<Map<String, dynamic>>.from(data['results']);
+            // Deterministic shuffle based on room code and page number
+            final random = Random(widget.roomCode.hashCode + currentPage);
+            newMovies.shuffle(random);
+            movies.addAll(newMovies);
             isLoading = false;
           });
         }
@@ -214,8 +261,10 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
 
   Future<void> _castVote(Map<String, dynamic> movie, bool isLike) async {
     final String movieId = movie['id'].toString();
-    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
-    
+    final roomRef = FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(widget.roomCode);
+
     // NEW: We create a specific document just for THIS movie's votes!
     // Path: rooms/{roomCode}/votes/{movieId}
     final movieVoteRef = roomRef.collection('votes').doc(movieId);
@@ -223,9 +272,9 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     if (!isLike) {
       // ❌ TRUE VETO: We only update the movie's private document. Zero lag.
       await movieVoteRef.set({
-        'vetoes': FieldValue.arrayUnion([widget.playerDeviceId])
+        'vetoes': FieldValue.arrayUnion([widget.playerDeviceId]),
       }, SetOptions(merge: true));
-      return; 
+      return;
     }
 
     // 💚 LIKE: We run the transaction on the MOVIE document, NOT the main room!
@@ -233,7 +282,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       // 1. Check the main room to see how many players are connected
       final roomSnapshot = await transaction.get(roomRef);
       if (!roomSnapshot.exists) return;
-      final int totalPlayers = (roomSnapshot.data()!['connectedPlayers'] as List?)?.length ?? 0;
+      final int totalPlayers =
+          (roomSnapshot.data()!['connectedPlayers'] as List?)?.length ?? 0;
 
       // 2. Check the movie's specific vote document
       final movieSnapshot = await transaction.get(movieVoteRef);
@@ -246,7 +296,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       }
 
       // If someone already vetoed it, abort!
-      if (vetoes.isNotEmpty) return; 
+      if (vetoes.isNotEmpty) return;
 
       // 3. Add our like
       if (!likes.contains(widget.playerDeviceId)) {
@@ -254,33 +304,35 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       }
 
       // Save the like to the movie's private document
-      transaction.set(movieVoteRef, {
-        'likes': likes
-      }, SetOptions(merge: true));
+      transaction.set(movieVoteRef, {'likes': likes}, SetOptions(merge: true));
 
       // 🏆 THE 100% CONSENSUS CHECK
       if (likes.length == totalPlayers && totalPlayers > 0) {
         // ONLY if it's a perfect match do we update the main room document
         // This is what instantly triggers the pop-up for everyone!
         transaction.update(roomRef, {
-          'latestMatch': movie, 
-          'matchedMovies': FieldValue.arrayUnion([movie]) 
+          'latestMatch': movie,
+          'matchedMovies': FieldValue.arrayUnion([movie]),
         });
       }
     });
   }
 
   // --- UI ACTIONS ---
-  bool _onSwipe(int previousIndex, int? currentIndex, CardSwiperDirection direction) {
+  bool _onSwipe(
+    int previousIndex,
+    int? currentIndex,
+    CardSwiperDirection direction,
+  ) {
     bool isLike = direction == CardSwiperDirection.right;
     _castVote(movies[previousIndex], isLike);
 
     if (currentIndex != null && currentIndex >= movies.length - 3) {
-      currentPage++; 
-      _fetchMovies(); 
+      currentPage++;
+      _fetchMovies();
     }
-    
-    return true; 
+
+    return true;
   }
 
   void _onEnd() {
@@ -292,7 +344,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         content: const Text("Waiting for other players to finish..."),
         actions: [
           TextButton(
-            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+            onPressed: () =>
+                Navigator.popUntil(context, (route) => route.isFirst),
             child: const Text("Back to Home"),
           ),
         ],
@@ -303,7 +356,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   void _showMatchOverlay(Map<String, dynamic> movie) {
     showGeneralDialog(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.9), 
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       barrierDismissible: false,
       // 1. Give the animation a nice, snappy duration
       transitionDuration: const Duration(milliseconds: 400),
@@ -315,98 +368,172 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         // easeOutQuart gives it a fast initial slide that softly slows down at the end
         const curve = Curves.easeOutQuart;
 
-        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var tween = Tween(
+          begin: begin,
+          end: end,
+        ).chain(CurveTween(curve: curve));
         var offsetAnimation = animation.drive(tween);
 
-        return SlideTransition(
-          position: offsetAnimation,
-          child: child,
-        );
+        return SlideTransition(position: offsetAnimation, child: child);
       },
       pageBuilder: (context, anim1, anim2) {
-        // THE FIX: PopScope prevents the Android hardware back button from closing 
+        // THE FIX: PopScope prevents the Android hardware back button from closing
         // the dialog locally without telling Firebase, which breaks the sync!
         return PopScope(
-          canPop: false, 
+          canPop: false,
           child: Material(
             color: Colors.transparent,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-                child: Column(
-                  children: [
-                    const Text("THE JURY HAS DECIDED...", style: TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1.0),
-                        children: [
-                          TextSpan(text: "It's a "),
-                          TextSpan(text: "Match!", style: TextStyle(color: AppColors.primary)),
-                        ],
-                      ),
+            child: Stack(
+              children: [
+                // Blurred background
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.3),
                     ),
-                    const SizedBox(height: 24),
-                    
-                    Expanded(
-                      child: _ScrollableMovieCard(movie: movie),
-                    ),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // --- NEW: KEEP SWIPING BUTTON ---
-                    SizedBox(
-                      width: double.infinity, height: 56,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: BorderSide(color: Colors.white.withValues(alpha: 0.5), width: 2),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        ),
-                        onPressed: () async {
-                          try {
-                            // Deleting 'latestMatch' triggers the listener to close the overlay for everyone
-                            await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).update({
-                              'latestMatch': FieldValue.delete(),
-                              'keepSwipingTrigger': DateTime.now().millisecondsSinceEpoch,
-                            });
-                          } catch (e) {
-                            debugPrint("Error keeping swiping: $e");
-                          }
-                        },
-                        icon: const Icon(Icons.swipe_rounded, color: Colors.white, size: 20),
-                        label: const Text("KEEP SWIPING", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // --------------------------------
-                    
-                    // --- EXISTING END SESSION BUTTON ---
-                    SizedBox(
-                      width: double.infinity, height: 56,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                        onPressed: () async {
-                          try {
-                            final roomRef = FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode);
-                            await roomRef.delete();
-                          } catch (e) {
-                            debugPrint("Error deleting room: $e");
-                          }
-                          if (!context.mounted) return;
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LandingScreen()), 
-                            (route) => false,
-                          );
-                        },
-                        icon: const Icon(Icons.home, color: Colors.white, size: 20),
-                        label: const Text("END SESSION & GO HOME", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 40.0,
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          "THE JURY HAS DECIDED...",
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 10,
+                            letterSpacing: 2.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: -1.0,
+                            ),
+                            children: [
+                              TextSpan(text: "It's a "),
+                              TextSpan(
+                                text: "Match!",
+                                style: TextStyle(color: AppColors.primary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        Expanded(child: _ScrollableMovieCard(movie: movie)),
+
+                        const SizedBox(height: 30),
+
+                        // --- NEW: KEEP SWIPING BUTTON ---
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.5),
+                                width: 2,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            onPressed: () async {
+                              try {
+                                // Deleting 'latestMatch' triggers the listener to close the overlay for everyone
+                                await FirebaseFirestore.instance
+                                    .collection('rooms')
+                                    .doc(widget.roomCode)
+                                    .update({
+                                      'latestMatch': FieldValue.delete(),
+                                      'keepSwipingTrigger':
+                                          DateTime.now().millisecondsSinceEpoch,
+                                    });
+                              } catch (e) {
+                                debugPrint("Error keeping swiping: $e");
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.swipe_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            label: const Text(
+                              "KEEP SWIPING",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // --------------------------------
+
+                        // --- EXISTING END SESSION BUTTON ---
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            onPressed: () async {
+                              try {
+                                final roomRef = FirebaseFirestore.instance
+                                    .collection('rooms')
+                                    .doc(widget.roomCode);
+                                await roomRef.delete();
+                              } catch (e) {
+                                debugPrint("Error deleting room: $e");
+                              }
+                              if (!context.mounted) return;
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LandingScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.home,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            label: const Text(
+                              "END SESSION & GO HOME",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -428,114 +555,133 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/veto-logo.png',
-              height: 32,
-            ),
-          ],
+          children: [Image.asset('assets/images/veto-logo.png', height: 32)],
         ),
       ),
-      body: isLoading 
-        ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-        : movies.isEmpty 
-            ? _buildEmptyState() // <-- THE FIX: Calls our new premium UI
-            : Column(
-                children: [
-                  // 1. Reduced top spacing to lift the card up slightly
-                  const SizedBox(height: 8), 
-                  
-                  Expanded(
-                    child: CardSwiper(
-                      controller: controller,
-                      cardsCount: movies.length,
-                      onSwipe: _onSwipe,
-                      onEnd: _onEnd,
-                      // 2. Added bottom padding to shrink the height of the card
-                      padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 32.0), 
-                      allowedSwipeDirection: const AllowedSwipeDirection.symmetric(horizontal: true),
-                      numberOfCardsDisplayed: 2,
-                      scale: 0.95,
-                      backCardOffset: const Offset(0, -15),
-                      cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
-                        return _ScrollableMovieCard(
-                          key: ValueKey(movies[index]['id']), 
-                          movie: movies[index]
-                        );
-                      },
-                    ),
-                  ),
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : movies.isEmpty
+          ? _buildEmptyState() // <-- THE FIX: Calls our new premium UI
+          : Column(
+              children: [
+                // 1. Reduced top spacing to lift the card up slightly
+                const SizedBox(height: 8),
 
-                  Column(
+                Expanded(
+                  child: CardSwiper(
+                    controller: controller,
+                    cardsCount: movies.length,
+                    onSwipe: _onSwipe,
+                    onEnd: _onEnd,
+                    // 2. Added bottom padding to shrink the height of the card
+                    padding: const EdgeInsets.only(
+                      left: 20.0,
+                      right: 20.0,
+                      bottom: 32.0,
+                    ),
+                    allowedSwipeDirection:
+                        const AllowedSwipeDirection.symmetric(horizontal: true),
+                    numberOfCardsDisplayed: 2,
+                    scale: 0.95,
+                    backCardOffset: const Offset(0, -15),
+                    cardBuilder:
+                        (context, index, percentThresholdX, percentThresholdY) {
+                          return _ScrollableMovieCard(
+                            key: ValueKey(movies[index]['id']),
+                            movie: movies[index],
+                          );
+                        },
+                  ),
+                ),
+
+                Column(
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.grey.shade500,
+                      size: 18,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "SCROLL FOR MORE INFO",
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // 4. Reduced bottom padding from 40.0 to 20.0
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade500, size: 18),
-                      const SizedBox(height: 2),
-                      Text(
-                        "SCROLL FOR MORE INFO",
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
+                      _buildCircularButton(
+                        icon: Icons.close,
+                        iconColor: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        size: 76, // Shaved down from 80
+                        shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                        onTap: () => controller.swipe(CardSwiperDirection.left),
+                      ),
+                      const SizedBox(width: 42),
+                      _buildCircularButton(
+                        icon: Icons.favorite,
+                        iconColor: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        size: 76, // Shaved down from 80
+                        shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                        onTap: () =>
+                            controller.swipe(CardSwiperDirection.right),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // 4. Reduced bottom padding from 40.0 to 20.0
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20.0), 
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildCircularButton(
-                          icon: Icons.close,
-                          iconColor: Colors.white,
-                          backgroundColor: AppColors.primary,
-                          size: 76, // Shaved down from 80
-                          shadowColor: AppColors.primary.withValues(alpha: 0.4), 
-                          onTap: () => controller.swipe(CardSwiperDirection.left),
-                        ),
-                        const SizedBox(width: 42),
-                        _buildCircularButton(
-                          icon: Icons.favorite,
-                          iconColor: Colors.white,
-                          backgroundColor: AppColors.primary,
-                          size: 76, // Shaved down from 80
-                          shadowColor: AppColors.primary.withValues(alpha: 0.4), 
-                          onTap: () => controller.swipe(CardSwiperDirection.right),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
     ); // <-- This closes the Scaffold!
   }
 
   Widget _buildCircularButton({
-    required IconData icon, required Color iconColor, required Color backgroundColor,
-    required double size, required VoidCallback onTap, bool hasShadow = true, Color? shadowColor,
+    required IconData icon,
+    required Color iconColor,
+    required Color backgroundColor,
+    required double size,
+    required VoidCallback onTap,
+    bool hasShadow = true,
+    Color? shadowColor,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: size, height: size,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
-          color: backgroundColor, shape: BoxShape.circle,
-          boxShadow: hasShadow ? [
-            BoxShadow(
-              color: shadowColor ?? Colors.black.withValues(alpha: 0.08), 
-              blurRadius: 15, 
-              spreadRadius: shadowColor != null ? 2 : 0, 
-              offset: const Offset(0, 5)
-            )
-          ] : [],
+          color: backgroundColor,
+          shape: BoxShape.circle,
+          boxShadow: hasShadow
+              ? [
+                  BoxShadow(
+                    color: shadowColor ?? Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 15,
+                    spreadRadius: shadowColor != null ? 2 : 0,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : [],
         ),
-        child: Center(child: Icon(icon, color: iconColor, size: size * 0.45)),
+        child: Center(
+          child: Icon(icon, color: iconColor, size: size * 0.45),
+        ),
       ),
     );
   }
@@ -543,7 +689,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   // --- 🎬 EMPTY STATE UI ---
   Widget _buildEmptyState() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -556,7 +702,11 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.movie_filter_rounded, size: 64, color: AppColors.primary),
+              child: Icon(
+                Icons.movie_filter_rounded,
+                size: 64,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: 32),
             Text(
@@ -579,7 +729,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
               ),
             ),
             const SizedBox(height: 40),
-            
+
             // Escape Hatch Button
             SizedBox(
               width: double.infinity,
@@ -587,30 +737,46 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
                   elevation: 0,
                 ),
                 onPressed: () async {
-                  // Deleting the room triggers the existing listener in the WaitingRoom/GenreScreen 
+                  // Deleting the room triggers the existing listener in the WaitingRoom/GenreScreen
                   // to automatically kick all other players back to the home screen gracefully!
                   try {
-                    await FirebaseFirestore.instance.collection('rooms').doc(widget.roomCode).delete();
+                    await FirebaseFirestore.instance
+                        .collection('rooms')
+                        .doc(widget.roomCode)
+                        .delete();
                   } catch (e) {
                     debugPrint("Error ending session: $e");
                   }
-                  
+
                   if (mounted) {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const LandingScreen()), 
+                      MaterialPageRoute(
+                        builder: (context) => const LandingScreen(),
+                      ),
                       (route) => false,
                     );
                   }
                 },
-                icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 label: const Text(
                   "END SESSION & RESTART",
-                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0,
+                  ),
                 ),
               ),
             ),
@@ -647,7 +813,7 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
-    
+
     // NEW: Fetch the juicy details the moment this card is created in the background!
     _fetchAdditionalDetails();
   }
@@ -659,7 +825,9 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
     if (movieId == null) return;
 
     // TMDB allows us to append credits and reviews into a single, blazing-fast API call
-    final url = Uri.parse('https://api.themoviedb.org/3/movie/$movieId?api_key=$apiKey&append_to_response=credits,reviews');
+    final url = Uri.parse(
+      'https://api.themoviedb.org/3/movie/$movieId?api_key=$apiKey&append_to_response=credits,reviews',
+    );
 
     try {
       final response = await http.get(url);
@@ -668,19 +836,32 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
 
         // 1. Extract Director
         final crew = data['credits']?['crew'] as List? ?? [];
-        final directorObj = crew.firstWhere((member) => member['job'] == 'Director', orElse: () => null);
-        final directorName = directorObj != null ? directorObj['name'] : 'Unknown';
+        final directorObj = crew.firstWhere(
+          (member) => member['job'] == 'Director',
+          orElse: () => null,
+        );
+        final directorName = directorObj != null
+            ? directorObj['name']
+            : 'Unknown';
 
         // 2. Extract Top 4 Cast Members
         final castList = data['credits']?['cast'] as List? ?? [];
-        final topCast = castList.take(4).map((c) => c['name'].toString()).toList();
+        final topCast = castList
+            .take(4)
+            .map((c) => c['name'].toString())
+            .toList();
 
         // 3. Extract Top 2 Reviews
         final reviewList = data['reviews']?['results'] as List? ?? [];
-        final topReviews = reviewList.take(2).map((r) => {
-          'author': r['author'].toString(),
-          'content': r['content'].toString(),
-        }).toList();
+        final topReviews = reviewList
+            .take(2)
+            .map(
+              (r) => {
+                'author': r['author'].toString(),
+                'content': r['content'].toString(),
+              },
+            )
+            .toList();
 
         if (mounted) {
           setState(() {
@@ -716,10 +897,10 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    
+
     double offset = _scrollController.offset;
     double progress = (offset / 150.0).clamp(0.0, 1.0);
-    
+
     if (_scrollProgress != progress) {
       setState(() {
         _scrollProgress = progress;
@@ -735,29 +916,52 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
 
   @override
   Widget build(BuildContext context) {
-    final String posterUrl = widget.movie['poster_path'] != null 
-        ? 'https://image.tmdb.org/t/p/w500${widget.movie['poster_path']}' 
+    final String posterUrl = widget.movie['poster_path'] != null
+        ? 'https://image.tmdb.org/t/p/w500${widget.movie['poster_path']}'
         : 'https://via.placeholder.com/800x1200?text=No+Poster';
-        
+
     final Map<int, String> tmdbReverseGenres = {
-      28: 'ACTION', 12: 'ADVENTURE', 16: 'ANIMATION', 35: 'COMEDY', 80: 'CRIME', 
-      99: 'DOCUMENTARY', 18: 'DRAMA', 10751: 'FAMILY', 14: 'FANTASY', 36: 'HISTORY', 
-      27: 'HORROR', 10402: 'MUSICAL', 9648: 'MYSTERY', 10749: 'ROMANCE', 878: 'SCI-FI', 
-      53: 'THRILLER', 37: 'WESTERN'
+      28: 'ACTION',
+      12: 'ADVENTURE',
+      16: 'ANIMATION',
+      35: 'COMEDY',
+      80: 'CRIME',
+      99: 'DOCUMENTARY',
+      18: 'DRAMA',
+      10751: 'FAMILY',
+      14: 'FANTASY',
+      36: 'HISTORY',
+      27: 'HORROR',
+      10402: 'MUSICAL',
+      9648: 'MYSTERY',
+      10749: 'ROMANCE',
+      878: 'SCI-FI',
+      53: 'THRILLER',
+      37: 'WESTERN',
     };
-    
-    String mainGenre = 'CINEMA';
-    if (widget.movie['genre_ids'] != null && (widget.movie['genre_ids'] as List).isNotEmpty) {
-      int firstId = widget.movie['genre_ids'][0];
-      mainGenre = tmdbReverseGenres[firstId] ?? 'CINEMA';
+
+    List<String> movieGenres = ['CINEMA'];
+    if (widget.movie['genre_ids'] != null &&
+        (widget.movie['genre_ids'] as List).isNotEmpty) {
+      movieGenres = (widget.movie['genre_ids'] as List)
+          .map((id) => tmdbReverseGenres[id] ?? '')
+          .where((genre) => genre.isNotEmpty)
+          .toList();
+      if (movieGenres.isEmpty) movieGenres = ['CINEMA'];
     }
 
     final String title = widget.movie['title'] ?? 'Unknown Title';
     final String overview = widget.movie['overview'] ?? 'No plot available.';
     final String releaseDate = widget.movie['release_date'] ?? '';
-    final String year = releaseDate.length >= 4 ? releaseDate.substring(0, 4) : '';
-    final String rating = (widget.movie['vote_average'] ?? 0.0).toStringAsFixed(1);
-    final String language = (widget.movie['original_language'] ?? '').toString().toUpperCase();
+    final String year = releaseDate.length >= 4
+        ? releaseDate.substring(0, 4)
+        : '';
+    final String rating = (widget.movie['vote_average'] ?? 0.0).toStringAsFixed(
+      1,
+    );
+    final String language = (widget.movie['original_language'] ?? '')
+        .toString()
+        .toUpperCase();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -765,7 +969,11 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, 10))
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
           child: ClipRRect(
@@ -773,17 +981,27 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.network(posterUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const SizedBox.shrink()),
+                  child: Image.network(
+                    posterUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => const SizedBox.shrink(),
+                  ),
                 ),
-                
+
                 Positioned(
-                  bottom: 0, left: 0, right: 0,
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
                   child: Container(
                     height: 250,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.9)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.9),
+                        ],
                       ),
                     ),
                   ),
@@ -791,8 +1009,15 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
 
                 Positioned.fill(
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: _scrollProgress * 12.0, sigmaY: _scrollProgress * 12.0),
-                    child: Container(color: Colors.black.withValues(alpha: _scrollProgress * 0.75)),
+                    filter: ImageFilter.blur(
+                      sigmaX: _scrollProgress * 12.0,
+                      sigmaY: _scrollProgress * 12.0,
+                    ),
+                    child: Container(
+                      color: Colors.black.withValues(
+                        alpha: _scrollProgress * 0.75,
+                      ),
+                    ),
                   ),
                 ),
 
@@ -810,27 +1035,51 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Wrap(
-                                spacing: 8, runSpacing: 8,
+                                spacing: 8,
+                                runSpacing: 8,
                                 children: [
-                                  _buildBadge('$rating / 10', AppColors.primary),
-                                  _buildBadge(mainGenre, Colors.white.withValues(alpha: 0.2)),
-                                  _buildBadge(year, Colors.white.withValues(alpha: 0.2)),
-                                  _buildBadge(language, Colors.white.withValues(alpha: 0.2)),
+                                  _buildBadge(
+                                    '$rating / 10',
+                                    AppColors.primary,
+                                  ),
+                                  ...movieGenres.map(
+                                    (genre) => _buildBadge(
+                                      genre,
+                                      Colors.white.withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  _buildBadge(
+                                    year,
+                                    Colors.white.withValues(alpha: 0.2),
+                                  ),
+                                  _buildBadge(
+                                    language,
+                                    Colors.white.withValues(alpha: 0.2),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              
+
                               Text(
                                 title.toUpperCase(),
-                                style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                ),
                               ),
                               const SizedBox(height: 12),
-                              
+
                               Text(
                                 overview,
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5),
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 14,
+                                  height: 1.5,
+                                ),
                               ),
-                              
+
                               const SizedBox(height: 32),
 
                               // --- THE NEW DETAILS SECTION ---
@@ -839,24 +1088,43 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
                                   child: Padding(
                                     padding: EdgeInsets.all(24.0),
                                     child: SizedBox(
-                                      height: 24, width: 24,
-                                      child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        color: AppColors.primary,
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                   ),
                                 )
                               else ...[
-                                
                                 // DIRECTOR
                                 _buildSectionTitle('DIRECTOR'),
                                 const SizedBox(height: 4),
-                                Text(_director, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                                Text(
+                                  _director,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                                 const SizedBox(height: 20),
 
                                 // CAST
                                 if (_cast.isNotEmpty) ...[
                                   _buildSectionTitle('MAIN CAST'),
                                   const SizedBox(height: 4),
-                                  Text(_cast.join(', '), style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.4)),
+                                  Text(
+                                    _cast.join(', '),
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                      fontSize: 14,
+                                      height: 1.4,
+                                    ),
+                                  ),
                                   const SizedBox(height: 24),
                                 ],
 
@@ -864,39 +1132,69 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
                                 if (_reviews.isNotEmpty) ...[
                                   _buildSectionTitle('FEATURED REVIEWS'),
                                   const SizedBox(height: 12),
-                                  ..._reviews.map((review) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 12.0),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                  ..._reviews.map(
+                                    (review) => Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12.0,
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.person, color: AppColors.primary, size: 14),
-                                              const SizedBox(width: 6),
-                                              Text(review['author']!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                                            ],
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.08,
                                           ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            review['content']!,
-                                            maxLines: 5, 
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13, height: 1.4),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
                                           ),
-                                        ],
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.person,
+                                                  color: AppColors.primary,
+                                                  size: 14,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  review['author']!,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              review['content']!,
+                                              maxLines: 5,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.8,
+                                                ),
+                                                fontSize: 13,
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  )),
+                                  ),
                                 ],
                               ],
-                              
+
                               const SizedBox(height: 60),
                             ],
                           ),
@@ -909,7 +1207,7 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
             ),
           ),
         );
-      }
+      },
     );
   }
 
@@ -918,21 +1216,31 @@ class _ScrollableMovieCardState extends State<_ScrollableMovieCard> {
     return Text(
       title,
       style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.5), 
-        fontSize: 10, 
-        fontWeight: FontWeight.bold, 
-        letterSpacing: 1.5
+        color: Colors.white.withValues(alpha: 0.5),
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 1.5,
       ),
     );
   }
 
   Widget _buildBadge(String text, Color color) {
     if (text.isEmpty || text == "N/A") return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-      child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

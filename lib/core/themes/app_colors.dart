@@ -4,10 +4,10 @@ class AppColors {
   AppColors._();
 
   // Core Palette
-  static const Color primary = Color(0xFFE50914);   // Bright Red
+  static const Color primary = Color(0xFFE50914); // Bright Red
   static const Color secondary = Color(0xFF262626); // Charcoal
-  static const Color tertiary = Color(0xFF0072D7);  // Bright Blue
-  static const Color neutral = Color(0xFFF5F5F5);   // Off-White
+  static const Color tertiary = Color(0xFF0072D7); // Bright Blue
+  static const Color neutral = Color(0xFFF5F5F5); // Off-White
 
   // Background Colors
   static const Color backgroundLight = Color(0xFFFFFFFF); // light mode
