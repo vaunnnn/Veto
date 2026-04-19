@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:veto/features/rooms/screens/waiting_room_screen.dart';
+import 'package:veto/features/rooms/screens/qr_scan_screen.dart';
 import 'package:veto/features/rooms/services/room_service.dart';
 
 class JoinRoomScreen extends StatefulWidget {
@@ -25,7 +26,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
       if (_focusNode.hasFocus && _codeController.text.isEmpty) {
         _codeController.text = 'VETO-';
         _codeController.selection = TextSelection.fromPosition(
-            TextPosition(offset: _codeController.text.length));
+          TextPosition(offset: _codeController.text.length),
+        );
       }
     });
   }
@@ -51,16 +53,51 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => WaitingRoomScreen(
-            roomCode: code,
-            playerDeviceId: myDeviceId,
-          ),
+          builder: (context) =>
+              WaitingRoomScreen(roomCode: code, playerDeviceId: myDeviceId),
         ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid Room Code. Try again!')),
       );
+    }
+  }
+
+  void _scanQRCode() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const QRScanScreen()),
+    );
+
+    if (result == null || result.isEmpty) return;
+
+    // Set the scanned code in the text field
+    _codeController.text = result;
+    _codeController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _codeController.text.length),
+    );
+
+    // Auto-join immediately
+    final code = result.trim().toUpperCase();
+    if (code.length >= 5) {
+      setState(() => _isLoading = true);
+      bool success = await _roomService.joinRoom(code, myDeviceId);
+      setState(() => _isLoading = false);
+
+      if (success && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                WaitingRoomScreen(roomCode: code, playerDeviceId: myDeviceId),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid Room Code. Try again!')),
+        );
+      }
     }
   }
 
@@ -87,13 +124,9 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
         ),
         centerTitle: true, // Forces the Row to center
         title: Row(
-          mainAxisSize: MainAxisSize.min, // Shrink-wraps the icon and text together
-          children: [
-            Image.asset(
-              'assets/images/veto-logo.png',
-              height: 32,
-            )
-          ],
+          mainAxisSize:
+              MainAxisSize.min, // Shrink-wraps the icon and text together
+          children: [Image.asset('assets/images/veto-logo.png', height: 32)],
         ),
       ),
       body: Stack(
@@ -109,10 +142,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.15),
-                    Colors.transparent,
-                  ],
+                  colors: [Colors.black.withOpacity(0.15), Colors.transparent],
                 ),
               ),
             ),
@@ -150,9 +180,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                             style: TextStyle(
                               fontSize: 14,
                               height: 1.4,
-                              color: colorScheme.onSurface.withOpacity(
-                                0.6,
-                              ),
+                              color: colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ),
@@ -183,9 +211,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
-                                  color: colorScheme.onSurface.withOpacity(
-                                    0.5,
-                                  ),
+                                  color: colorScheme.onSurface.withOpacity(0.5),
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -208,16 +234,17 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                     fontSize: 22,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 4.0,
-                                    color: colorScheme.primary.withOpacity(
-                                      0.8,
-                                    ),
+                                    color: colorScheme.primary.withOpacity(0.8),
                                   ),
                                   decoration: InputDecoration(
                                     hintText: 'VETO-XXXX',
                                     hintStyle: TextStyle(
-                                      color: theme.brightness == Brightness.light
+                                      color:
+                                          theme.brightness == Brightness.light
                                           ? colorScheme.primary.withOpacity(0.2)
-                                          : colorScheme.onSurface.withOpacity(0.4),
+                                          : colorScheme.onSurface.withOpacity(
+                                              0.4,
+                                            ),
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 2.0,
                                       fontSize: 20,
@@ -230,6 +257,34 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                 ),
                               ),
                               const SizedBox(height: 24),
+                              // SCAN QR CODE Button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 60,
+                                child: OutlinedButton(
+                                  onPressed: _scanQRCode,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
+                                    side: BorderSide(
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.qr_code_scanner),
+                                      SizedBox(width: 8),
+                                      Text('SCAN QR CODE'),
+                                    ],
+                                  ),
+                                ),
+                              ),
 
                               // Join Room Button
                               SizedBox(
