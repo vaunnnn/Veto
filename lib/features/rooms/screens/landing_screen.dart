@@ -30,8 +30,8 @@ class _LandingScreenState extends State<LandingScreen> {
           Positioned.fill(
             child: Image.asset(
               isDark
-                  ? 'assets/images/bg-dark.png' // <-- Update this to your exact dark GIF filename
-                  : 'assets/images/bg-light.png', // <-- Update this to your exact light GIF filename
+                  ? 'assets/images/bg-dark.webp' // <-- Update this to your exact dark GIF filename
+                  : 'assets/images/bg-light.webp', // <-- Update this to your exact light GIF filename
               fit: BoxFit.cover,
             ),
           ),
@@ -54,7 +54,7 @@ class _LandingScreenState extends State<LandingScreen> {
               elevation: 0,
               centerTitle: true,
               title: Image.asset(
-                'assets/images/veto-logo.png',
+                'assets/images/veto-logo.webp',
                 height: 32, // Standard height for logos in the AppBar
               ),
             ),
@@ -471,7 +471,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Image.asset(
-                                  'assets/images/tmdb-logo.png',
+                                  'assets/images/tmdb-logo.webp',
                                   width: 36,
                                 ),
                                 const SizedBox(width: 8),

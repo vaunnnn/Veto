@@ -19,24 +19,24 @@ class GenreSelectionScreen extends StatefulWidget {
 
 class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   final List<Map<String, String>> genres = [
-    {'name': 'Action', 'image': 'assets/images/action.png'},
-    {'name': 'Adventure', 'image': 'assets/images/adventure.png'},
-    {'name': 'Animation', 'image': 'assets/images/animation.png'},
-    {'name': 'Biography', 'image': 'assets/images/biography.png'},
-    {'name': 'Comedy', 'image': 'assets/images/comedy.png'},
-    {'name': 'Documentary', 'image': 'assets/images/documentary.png'},
-    {'name': 'Drama', 'image': 'assets/images/drama.png'},
-    {'name': 'Family', 'image': 'assets/images/family.png'},
-    {'name': 'Fantasy', 'image': 'assets/images/fantasy.png'},
-    {'name': 'History', 'image': 'assets/images/history.png'},
-    {'name': 'Horror', 'image': 'assets/images/horror.png'},
-    {'name': 'Musical', 'image': 'assets/images/musical.png'},
-    {'name': 'Mystery', 'image': 'assets/images/mystery.png'},
-    {'name': 'Romance', 'image': 'assets/images/romance.png'},
-    {'name': 'Sci-Fi', 'image': 'assets/images/sci-fi.png'},
-    {'name': 'Sport', 'image': 'assets/images/sport.png'},
-    {'name': 'Thriller', 'image': 'assets/images/thriller.png'},
-    {'name': 'Western', 'image': 'assets/images/western.png'},
+    {'name': 'Action', 'image': 'assets/images/action.webp'},
+    {'name': 'Adventure', 'image': 'assets/images/adventure.webp'},
+    {'name': 'Animation', 'image': 'assets/images/animation.webp'},
+    {'name': 'Biography', 'image': 'assets/images/biography.webp'},
+    {'name': 'Comedy', 'image': 'assets/images/comedy.webp'},
+    {'name': 'Documentary', 'image': 'assets/images/documentary.webp'},
+    {'name': 'Drama', 'image': 'assets/images/drama.webp'},
+    {'name': 'Family', 'image': 'assets/images/family.webp'},
+    {'name': 'Fantasy', 'image': 'assets/images/fantasy.webp'},
+    {'name': 'History', 'image': 'assets/images/history.webp'},
+    {'name': 'Horror', 'image': 'assets/images/horror.webp'},
+    {'name': 'Musical', 'image': 'assets/images/musical.webp'},
+    {'name': 'Mystery', 'image': 'assets/images/mystery.webp'},
+    {'name': 'Romance', 'image': 'assets/images/romance.webp'},
+    {'name': 'Sci-Fi', 'image': 'assets/images/sci-fi.webp'},
+    {'name': 'Sport', 'image': 'assets/images/sport.webp'},
+    {'name': 'Thriller', 'image': 'assets/images/thriller.webp'},
+    {'name': 'Western', 'image': 'assets/images/western.webp'},
   ];
 
   final Set<String> selectedGenres = {};
@@ -107,7 +107,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                 final profile = profiles[deviceId] ?? {};
                 final String name = profile['name'] ?? 'Guest';
                 final String avatar =
-                    profile['avatar'] ?? 'assets/images/default-pic-1.png';
+                    profile['avatar'] ?? 'assets/images/default-pic-1.webp';
                 final bool isReady =
                     profile.containsKey('genres') &&
                     (profile['genres'] as List).isNotEmpty;
