@@ -22,6 +22,7 @@ class GenreSelectionScreen extends StatefulWidget {
 class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
   StreamSubscription<DocumentSnapshot>? _roomSubscription;
   bool _isHost = false;
+  bool _navigatedAway = false;
 
   @override
   void initState() {
@@ -35,15 +36,25 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
         .doc(widget.roomCode)
         .snapshots()
         .listen((snapshot) {
-          if (snapshot.exists) {
-            final data = snapshot.data() as Map<String, dynamic>;
-            final String? hostId = data['hostId']?.toString();
-            final bool isHost = hostId == widget.playerDeviceId;
-            if (_isHost != isHost && mounted) {
-              setState(() {
-                _isHost = isHost;
-              });
+          if (!snapshot.exists) {
+            // Room deleted, navigate to landing screen
+            if (!_navigatedAway && mounted) {
+              _navigatedAway = true;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LandingScreen()),
+                (route) => false,
+              );
             }
+            return;
+          }
+          final data = snapshot.data() as Map<String, dynamic>;
+          final String? hostId = data['hostId']?.toString();
+          final bool isHost = hostId == widget.playerDeviceId;
+          if (_isHost != isHost && mounted) {
+            setState(() {
+              _isHost = isHost;
+            });
           }
         });
   }
@@ -73,6 +84,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
     }
 
     if (mounted) {
+      _navigatedAway = true;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LandingScreen()),
