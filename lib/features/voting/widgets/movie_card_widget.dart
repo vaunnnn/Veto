@@ -367,8 +367,6 @@ class _MovieCardState extends State<MovieCard> {
                                             const SizedBox(height: 8),
                                             Text(
                                               review['content']!,
-                                              maxLines: 5,
-                                              overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 color: Colors.white.withValues(
                                                   alpha: 0.8,

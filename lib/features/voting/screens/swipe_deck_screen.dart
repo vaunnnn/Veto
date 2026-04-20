@@ -664,6 +664,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
           automaticallyImplyLeading: false,
           backgroundColor: Colors.transparent,
           elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
           centerTitle: true,
           title: Row(
             mainAxisSize: MainAxisSize.min,
