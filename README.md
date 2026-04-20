@@ -102,6 +102,35 @@ Ensure you have an emulator running or a physical device connected, then launch 
 
 ---
 
+## Security Notice
+
+### API Key Security
+The `.env` file containing API keys has been removed from git history. However, if your keys were previously committed, they may be compromised. Take immediate action:
+
+1. **Regenerate API Keys:**
+   - TMDB: Visit https://www.themoviedb.org/settings/api to generate a new key
+   - Firebase: Regenerate API keys in Firebase Console
+
+2. **Update Local Environment:**
+   - Rename `.env` to `.env.backup`
+   - Copy `.env.local.example` to `.env.local`
+   - Fill in your new API keys
+   - Update `main.dart` to load `.env.local` instead of `.env`
+
+3. **Verify Git History:**
+   ```bash
+   git log --all --oneline -- .env
+   ```
+   If any commits show `.env`, consider rewriting git history or rotating keys.
+
+### Architecture Security Improvements
+The new Clean Architecture separates backend logic from UI, providing:
+- No direct Firebase calls in screens
+- API keys only accessed via service layer
+- Business logic isolated from presentation layer
+
+---
+
 ## Commit Message Convention
 
 Every commit message must be structured as follows:

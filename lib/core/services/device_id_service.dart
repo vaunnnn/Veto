@@ -3,9 +3,9 @@ import 'package:uuid/uuid.dart';
 
 class DeviceIdService {
   static const String _storageKey = 'device_id';
-  static String? _cachedId;
+  String? _cachedId;
 
-  static Future<String> get id async {
+  Future<String> getDeviceId() async {
     if (_cachedId != null) return _cachedId!;
 
     final prefs = await SharedPreferences.getInstance();
@@ -22,7 +22,7 @@ class DeviceIdService {
     return newId;
   }
 
-  static Future<void> clear() async {
+  Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_storageKey);
     _cachedId = null;

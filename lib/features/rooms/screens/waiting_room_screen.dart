@@ -2,13 +2,16 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:veto/features/voting/screens/genre_selection_screen.dart';
 import 'package:veto/features/rooms/widgets/qr_code_widget.dart';
 import 'package:veto/features/rooms/widgets/player_card_widget.dart';
+import 'package:veto/core/providers/providers.dart';
+import 'package:veto/core/domain/entities/room.dart';
 import 'landing_screen.dart';
 
-class WaitingRoomScreen extends StatefulWidget {
+class WaitingRoomScreen extends ConsumerStatefulWidget {
   final String roomCode;
   final bool isHost;
   final String playerDeviceId;
@@ -21,64 +24,59 @@ class WaitingRoomScreen extends StatefulWidget {
   });
 
   @override
-  State<WaitingRoomScreen> createState() => _WaitingRoomScreenState();
+  ConsumerState<WaitingRoomScreen> createState() => _WaitingRoomScreenState();
 }
 
-class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
+class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
   // This is our background listener that watches for kicks and teleports
-  StreamSubscription<DocumentSnapshot>? _roomSubscription;
   bool _isHost = false;
+  bool _navigatedAway = false;
 
   @override
   void initState() {
     super.initState();
     _isHost = widget.isHost;
-    _listenToRoomEvents();
+    _setupRoomListener();
   }
 
   // --- THE MAGIC TELEPORT & KICK LOGIC ---
-  void _listenToRoomEvents() {
-    _roomSubscription = FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(widget.roomCode)
-        .snapshots()
-        .listen((snapshot) {
-          // 1. IF THE ROOM NO LONGER EXISTS (Host Deleted It)
-          if (!snapshot.exists) {
-            // We only show the error to the guests (the host knows they left!)
-            if (mounted && !_isHost) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('The host has closed the session.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-              // Kick them back to the landing screen
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LandingScreen()),
-                (route) => false,
-              );
+  void _setupRoomListener() {
+    ref.listen<AsyncValue<Room?>>(
+      roomStreamProvider(widget.roomCode),
+      (previous, next) {
+        next.when(
+          data: (room) {
+            if (room == null) {
+              // Room deleted, navigate to landing screen (only show snackbar for guests)
+              if (!_navigatedAway && mounted && !_isHost) {
+                _navigatedAway = true;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('The host has closed the session.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LandingScreen()),
+                  (route) => false,
+                );
+              }
+              return;
             }
-          }
-          // 2. IF THE ROOM EXISTS, CHECK THE STATUS AND ROSTER
-          else {
-            final data = snapshot.data() as Map<String, dynamic>;
+            
             // Update host status based on stored hostId
-            final String? hostId = data['hostId']?.toString();
-            final bool isHost = hostId == widget.playerDeviceId;
+            final bool isHost = room.hostId == widget.playerDeviceId;
             if (_isHost != isHost && mounted) {
               setState(() {
                 _isHost = isHost;
               });
             }
-            final List<dynamic> connectedPlayers =
-                data['connectedPlayers'] ?? [];
-
-            // NEW: Check if this specific user was kicked!
-            if (!_isHost && !connectedPlayers.contains(widget.playerDeviceId)) {
-              if (mounted) {
-                _roomSubscription?.cancel();
+            
+            // Check if this specific user was kicked!
+            if (!_isHost && !room.connectedPlayers.contains(widget.playerDeviceId)) {
+              if (!_navigatedAway && mounted) {
+                _navigatedAway = true;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('You have been removed from the session.'),
@@ -87,19 +85,17 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                 );
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const LandingScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const LandingScreen()),
                   (route) => false,
                 );
               }
-              return; // Stop running the rest of the listener
+              return;
             }
 
-            // Existing logic: Teleport everyone if the host starts the session
-            if (data['status'] == 'voting') {
-              if (mounted) {
-                _roomSubscription?.cancel();
+            // Teleport everyone if the host starts the session
+            if (room.status == RoomStatus.voting) {
+              if (!_navigatedAway && mounted) {
+                _navigatedAway = true;
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
@@ -111,36 +107,34 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                 );
               }
             }
-          }
-        });
+          },
+          error: (error, stackTrace) {
+            // Handle error if needed
+          },
+          loading: () {
+            // Loading state if needed
+          },
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
-    _roomSubscription?.cancel();
-
     super.dispose();
   }
 
   Future<void> _leaveRoom() async {
-    _roomSubscription?.cancel();
+    final roomManagementService = ref.read(roomManagementServiceProvider);
 
     if (_isHost) {
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .delete();
+      await roomManagementService.deleteRoom(widget.roomCode);
     } else {
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .update({
-            'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
-            'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(),
-          });
+      await roomManagementService.leaveRoom(widget.roomCode, widget.playerDeviceId);
     }
 
     if (mounted) {
+      _navigatedAway = true;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LandingScreen()),
@@ -324,17 +318,14 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                   onPressed: () async {
                     final String finalName = nameController.text.trim();
 
-                    await FirebaseFirestore.instance
-                        .collection('rooms')
-                        .doc(widget.roomCode)
-                        .set({
-                          'playerProfiles': {
-                            widget.playerDeviceId: {
-                              'name': finalName.isEmpty ? 'Guest' : finalName,
-                              'avatar': newAvatar,
-                            },
-                          },
-                        }, SetOptions(merge: true));
+                    final roomManagementService = ref.read(roomManagementServiceProvider);
+                    await roomManagementService.updatePlayerProfile(
+                      widget.roomCode,
+                      widget.playerDeviceId,
+                      finalName.isEmpty ? 'Guest' : finalName,
+                      newAvatar,
+                      _isHost,
+                    );
 
                     if (context.mounted) Navigator.pop(context);
                   },
@@ -520,11 +511,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
 
   // --- 3. THE HOST SETTINGS MODAL ---
   void _showHostSettingsModal() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(widget.roomCode)
-        .get();
-    final currentSettings = doc.data()?['filterSettings'] ?? {};
+    final roomAsync = ref.read(roomStreamProvider(widget.roomCode));
+    final currentSettings = roomAsync.value?.filterSettings.toMap() ?? {};
 
     double minYear = (currentSettings['minYear'] ?? 1970).toDouble();
     double maxYear = (currentSettings['maxYear'] ?? DateTime.now().year)
@@ -1116,23 +1104,22 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                         ),
                         elevation: 0,
                       ),
-                      onPressed: () async {
-                        await FirebaseFirestore.instance
-                            .collection('rooms')
-                            .doc(widget.roomCode)
-                            .set({
-                              'filterSettings': {
-                                'minYear': minYear.toInt(),
-                                'maxYear': maxYear.toInt(),
-                                'minScore': minScore,
-                                'maxRuntime': maxRuntime,
-                                'familyFriendly': familyFriendly,
-                                'languages': selectedLanguages,
-                              },
-                            }, SetOptions(merge: true));
+                       onPressed: () async {
+                         final roomManagementService = ref.read(roomManagementServiceProvider);
+                         await roomManagementService.updateFilterSettings(
+                           widget.roomCode,
+                           {
+                             'minYear': minYear.toInt(),
+                             'maxYear': maxYear.toInt(),
+                             'minScore': minScore,
+                             'maxRuntime': maxRuntime,
+                             'familyFriendly': familyFriendly,
+                             'languages': selectedLanguages,
+                           },
+                         );
 
-                        if (context.mounted) Navigator.pop(context);
-                      },
+                         if (context.mounted) Navigator.pop(context);
+                       },
                       child: const Text(
                         "APPLY TO ROOM",
                         style: TextStyle(
@@ -1163,6 +1150,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         ? const Color(0xFFF8F9FA)
         : colorScheme.surface;
 
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
@@ -1193,19 +1181,23 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
           ],
         ),
         // We still use StreamBuilder to draw the UI live
-        body: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('rooms')
-              .doc(widget.roomCode)
-              .snapshots(),
+        body: StreamBuilder<Room?>(
+          // ignore: deprecated_member_use
+          stream: ref.watch(roomStreamProvider(widget.roomCode).stream),
           builder: (context, snapshot) {
-            if (!snapshot.hasData || !snapshot.data!.exists) {
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-
-            final data = snapshot.data!.data() as Map<String, dynamic>;
-            final List<dynamic> connectedPlayers =
-                data['connectedPlayers'] ?? [];
+            final Room? room = snapshot.data;
+            if (room == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            // Convert room to data map for compatibility with existing UI
+            final Map<String, dynamic> data = {
+              'connectedPlayers': room.connectedPlayers,
+              'playerProfiles': room.playerProfiles.map((key, value) => MapEntry(key, value.toMap())),
+            };
+            final List<dynamic> connectedPlayers = data['connectedPlayers'] ?? [];
             final int playerCount = connectedPlayers.length;
 
             return SafeArea(
@@ -1399,17 +1391,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                   currentProfile['avatar']!,
                                 ),
                                 onKick: () async {
-                                  await FirebaseFirestore.instance
-                                      .collection('rooms')
-                                      .doc(widget.roomCode)
-                                      .update({
-                                        'connectedPlayers':
-                                            FieldValue.arrayRemove([
-                                              targetDeviceId,
-                                            ]),
-                                        'playerProfiles.$targetDeviceId':
-                                            FieldValue.delete(),
-                                      });
+                                  final roomManagementService = ref.read(roomManagementServiceProvider);
+                                  await roomManagementService.kickPlayer(widget.roomCode, targetDeviceId);
                                 },
                               );
                             },
@@ -1447,10 +1430,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                             ),
                             onPressed: _isHost
                                 ? () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('rooms')
-                                        .doc(widget.roomCode)
-                                        .update({'status': 'voting'});
+                                    final roomManagementService = ref.read(roomManagementServiceProvider);
+                                    await roomManagementService.updateRoomStatus(widget.roomCode, 'voting');
                                   }
                                 : null,
                             child: Text(

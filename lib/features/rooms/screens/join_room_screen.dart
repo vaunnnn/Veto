@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:veto/core/services/device_id_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:veto/core/providers/providers.dart';
 import 'package:veto/features/rooms/screens/waiting_room_screen.dart';
 import 'package:veto/features/rooms/screens/qr_scan_screen.dart';
-import 'package:veto/features/rooms/services/room_service.dart';
 
-class JoinRoomScreen extends StatefulWidget {
+class JoinRoomScreen extends ConsumerStatefulWidget {
   const JoinRoomScreen({super.key});
 
   @override
-  State<JoinRoomScreen> createState() => _JoinRoomScreenState();
+  ConsumerState<JoinRoomScreen> createState() => _JoinRoomScreenState();
 }
 
-class _JoinRoomScreenState extends State<JoinRoomScreen> {
+class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
   final TextEditingController _codeController = TextEditingController();
-  final RoomService _roomService = RoomService();
   final FocusNode _focusNode = FocusNode();
   bool _isLoading = false;
 
   // Device ID service
-  Future<String> _getDeviceId() async => await DeviceIdService.id;
+  Future<String> _getDeviceId() async {
+    final deviceIdService = ref.read(deviceIdServiceProvider);
+    return await deviceIdService.getDeviceId();
+  }
 
   @override
   void initState() {
@@ -47,7 +49,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
     setState(() => _isLoading = true);
 
     final deviceId = await _getDeviceId();
-    bool success = await _roomService.joinRoom(code, deviceId);
+    final roomManagementService = ref.read(roomManagementServiceProvider);
+    bool success = await roomManagementService.joinRoom(code, deviceId);
 
     setState(() => _isLoading = false);
 
@@ -85,7 +88,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
     if (code.length >= 5) {
       setState(() => _isLoading = true);
       final deviceId = await _getDeviceId();
-      bool success = await _roomService.joinRoom(code, deviceId);
+      final roomManagementService = ref.read(roomManagementServiceProvider);
+      bool success = await roomManagementService.joinRoom(code, deviceId);
       setState(() => _isLoading = false);
 
       if (success && mounted) {

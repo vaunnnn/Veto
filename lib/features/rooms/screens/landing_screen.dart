@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:veto/core/themes/app_colors.dart';
-import 'package:veto/core/services/device_id_service.dart';
+import 'package:veto/core/providers/providers.dart';
 import 'join_room_screen.dart';
 import 'waiting_room_screen.dart';
-import '../services/room_service.dart';
 
-class LandingScreen extends StatefulWidget {
+class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
 
   @override
-  State<LandingScreen> createState() => _LandingScreenState();
+  ConsumerState<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen> {
+class _LandingScreenState extends ConsumerState<LandingScreen> {
   // NEW: A variable to track if the database is currently thinking
   bool _isCreatingRoom = false;
 
   @override
   Widget build(BuildContext context) {
-    final roomService = RoomService();
-
+    final roomManagementService = ref.read(roomManagementServiceProvider);
+    final deviceIdService = ref.read(deviceIdServiceProvider);
     final size = MediaQuery.of(context).size;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -154,9 +154,9 @@ class _LandingScreenState extends State<LandingScreen> {
 
                                       try {
                                         // 2. Create the room in the database
-                                        final deviceId =
-                                            await DeviceIdService.id;
-                                        String newRoomCode = await roomService
+                                        final deviceId = await deviceIdService
+                                            .getDeviceId();
+                                        String newRoomCode = await roomManagementService
                                             .createRoom(deviceId);
 
                                         // 3. Navigate to the Waiting Room

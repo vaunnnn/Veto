@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:veto/core/themes/app_colors.dart'; // Adjust if your package name is different
+import 'package:veto/core/providers/providers.dart';
+import 'package:veto/core/domain/entities/room.dart';
 import 'package:veto/features/rooms/screens/landing_screen.dart';
 import 'swipe_deck_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-class GenreSelectionScreen extends StatefulWidget {
+class GenreSelectionScreen extends ConsumerStatefulWidget {
   final String roomCode;
   final String playerDeviceId;
 
@@ -16,71 +18,74 @@ class GenreSelectionScreen extends StatefulWidget {
   });
 
   @override
-  State<GenreSelectionScreen> createState() => _GenreSelectionScreenState();
+  ConsumerState<GenreSelectionScreen> createState() => _GenreSelectionScreenState();
 }
 
-class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
-  StreamSubscription<DocumentSnapshot>? _roomSubscription;
+class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
   bool _isHost = false;
   bool _navigatedAway = false;
+  Room? _currentRoom;
 
   @override
   void initState() {
     super.initState();
-    _listenToRoom();
+    _setupRoomListener();
   }
 
-  void _listenToRoom() {
-    _roomSubscription = FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(widget.roomCode)
-        .snapshots()
-        .listen((snapshot) {
-          if (!snapshot.exists) {
-            // Room deleted, navigate to landing screen
-            if (!_navigatedAway && mounted) {
-              _navigatedAway = true;
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LandingScreen()),
-                (route) => false,
-              );
+  void _setupRoomListener() {
+    ref.listen<AsyncValue<Room?>>(
+      roomStreamProvider(widget.roomCode),
+      (previous, next) {
+        next.when(
+          data: (room) {
+            if (room == null) {
+              // Room deleted, navigate to landing screen
+              if (!_navigatedAway && mounted) {
+                _navigatedAway = true;
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LandingScreen()),
+                  (route) => false,
+                );
+              }
+              return;
             }
-            return;
-          }
-          final data = snapshot.data() as Map<String, dynamic>;
-          final String? hostId = data['hostId']?.toString();
-          final bool isHost = hostId == widget.playerDeviceId;
-          if (_isHost != isHost && mounted) {
-            setState(() {
-              _isHost = isHost;
-            });
-          }
-        });
+            
+            final bool isHost = room.hostId == widget.playerDeviceId;
+            if (_isHost != isHost && mounted) {
+              setState(() {
+                _isHost = isHost;
+                _currentRoom = room;
+              });
+            } else if (mounted) {
+              setState(() {
+                _currentRoom = room;
+              });
+            }
+          },
+          error: (error, stackTrace) {
+            // Handle error if needed
+          },
+          loading: () {
+            // Loading state if needed
+          },
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
-    _roomSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _leaveRoom() async {
-    _roomSubscription?.cancel();
+    final roomManagementService = ref.read(roomManagementServiceProvider);
 
     if (_isHost) {
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .delete();
+      await roomManagementService.deleteRoom(widget.roomCode);
     } else {
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .update({
-            'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
-            'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(),
-          });
+      await roomManagementService.leaveRoom(widget.roomCode, widget.playerDeviceId);
     }
 
     if (mounted) {
@@ -91,6 +96,11 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
         (route) => false,
       );
     }
+  }
+
+  Stream<Room?> _roomStream() {
+    // ignore: deprecated_member_use
+    return ref.watch(roomStreamProvider(widget.roomCode).stream);
   }
 
   final List<Map<String, String>> genres = [
@@ -156,44 +166,38 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
           ),
           // Adapts background color based on Light/Dark mode
           backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
-          child: StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('rooms')
-                .doc(widget.roomCode)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData || !snapshot.data!.exists) {
+            child: StreamBuilder<Room?>(
+              // ignore: deprecated_member_use
+              stream: _roomStream(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data == null) {
                 return const SizedBox(
                   height: 150,
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              final data = snapshot.data!.data() as Map<String, dynamic>;
-              final List<dynamic> connectedPlayers =
-                  data['connectedPlayers'] ?? [];
-              final Map<String, dynamic> profiles =
-                  data['playerProfiles'] ?? {};
+               final room = snapshot.data!;
+               final connectedPlayers = room.connectedPlayers;
+               final profiles = room.playerProfiles;
 
               int readyCount = 0;
               List<Widget> playerStatusWidgets = [];
 
-              for (String deviceId in connectedPlayers) {
-                final profile = profiles[deviceId] ?? {};
-                final String name = profile['name'] ?? 'Guest';
-                final String avatar =
-                    profile['avatar'] ?? 'assets/images/default-pic-1.webp';
-                final bool isReady =
-                    profile.containsKey('genres') &&
-                    (profile['genres'] as List).isNotEmpty;
+               for (String deviceId in connectedPlayers) {
+                 final profile = profiles[deviceId];
+                 final String name = profile?.name ?? 'Guest';
+                 final String avatar =
+                     profile?.avatar ?? 'assets/images/default-pic-1.webp';
+                 final bool isReady = profile?.genres?.isNotEmpty ?? false;
 
-                if (isReady) readyCount++;
+                 if (isReady) readyCount++;
 
-                String subtitleText = 'Selecting...';
-                if (isReady) {
-                  final List<dynamic> userGenres = profile['genres'];
-                  subtitleText = userGenres.join(', ');
-                }
+                 String subtitleText = 'Selecting...';
+                 if (isReady) {
+                   final List<String> userGenres = profile!.genres!;
+                   subtitleText = userGenres.join(', ');
+                 }
 
                 playerStatusWidgets.add(
                   Container(
@@ -285,7 +289,7 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
 
               // --- TELEPORTATION LOGIC ---
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (data['status'] == 'swiping') {
+                 if (_currentRoom?.status == RoomStatus.swiping) {
                   Navigator.pop(context);
                   Navigator.pushReplacement(
                     context,
@@ -299,10 +303,8 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                   );
                 } else if (readyCount == connectedPlayers.length &&
                     connectedPlayers.isNotEmpty) {
-                  FirebaseFirestore.instance
-                      .collection('rooms')
-                      .doc(widget.roomCode)
-                      .update({'status': 'swiping'});
+                  ref.read(roomManagementServiceProvider)
+                      .updateRoomStatus(widget.roomCode, 'swiping');
                 }
               });
 
@@ -356,16 +358,11 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        onPressed: () async {
-                          await FirebaseFirestore.instance
-                              .collection('rooms')
-                              .doc(widget.roomCode)
-                              .update({
-                                'playerProfiles.${widget.playerDeviceId}.genres':
-                                    [],
-                              });
-                          if (context.mounted) Navigator.pop(context);
-                        },
+                         onPressed: () async {
+                           await ref.read(roomManagementServiceProvider)
+                               .updatePlayerGenres(widget.roomCode, widget.playerDeviceId, []);
+                           if (context.mounted) Navigator.pop(context);
+                         },
                         child: Text(
                           'Cancel Selection',
                           style: TextStyle(
@@ -517,33 +514,18 @@ class _GenreSelectionScreenState extends State<GenreSelectionScreen> {
                       onPressed: selectedGenres.isEmpty
                           ? null
                           : () async {
-                              // 1. Fetch the room data to see how many people are playing
-                              final roomDoc = await FirebaseFirestore.instance
-                                  .collection('rooms')
-                                  .doc(widget.roomCode)
-                                  .get();
-
-                              final connectedPlayers =
-                                  (roomDoc.data()?['connectedPlayers']
-                                      as List?) ??
-                                  [];
+                               // 1. Fetch the room data to see how many people are playing
+                               final connectedPlayers = _currentRoom?.connectedPlayers ?? [];
 
                               // 2. Save their selected genres to the database
-                              await FirebaseFirestore.instance
-                                  .collection('rooms')
-                                  .doc(widget.roomCode)
-                                  .update({
-                                    'playerProfiles.${widget.playerDeviceId}.genres':
-                                        selectedGenres.toList(),
-                                  });
+                               await ref.read(roomManagementServiceProvider)
+                                   .updatePlayerGenres(widget.roomCode, widget.playerDeviceId, selectedGenres.toList());
 
                               // 3. THE FIX: Are they playing solo? Skip the dialog entirely!
                               if (connectedPlayers.length <= 1) {
                                 // Tell the database we are moving to the swiping phase
-                                await FirebaseFirestore.instance
-                                    .collection('rooms')
-                                    .doc(widget.roomCode)
-                                    .update({'status': 'swiping'});
+                                 await ref.read(roomManagementServiceProvider)
+                                     .updateRoomStatus(widget.roomCode, 'swiping');
 
                                 // Instantly teleport the solo player
                                 if (context.mounted) {
