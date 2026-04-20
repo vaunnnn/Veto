@@ -173,9 +173,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
       );
       if (confirm == true) {
         await _leaveRoom();
-        return false;
       }
-      return true;
+      return false;
     } else {
       await _leaveRoom();
       return false;
