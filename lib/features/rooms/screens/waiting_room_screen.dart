@@ -176,7 +176,27 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
       }
       return false;
     } else {
-      await _leaveRoom();
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Leave Room?'),
+          content: const Text('This will remove you from the room.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Leave Room'),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        await _leaveRoom();
+      }
       return false;
     }
   }
