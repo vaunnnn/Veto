@@ -52,55 +52,266 @@ class _LandingScreenState extends State<LandingScreen> {
           // 3. YOUR EXISTING UI
           Scaffold(
             backgroundColor: Colors.transparent,
-            extendBodyBehindAppBar: true,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              forceMaterialTransparency: true,
-              scrolledUnderElevation: 0,
-              surfaceTintColor: Colors.transparent,
-              centerTitle: true,
-              title: Image.asset(
-                'assets/images/veto-logo.webp',
-                height: 32, // Standard height for logos in the AppBar
-                cacheHeight: 64,
-                cacheWidth: 200,
-              ),
-            ),
-            body: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ==========================================
-                  // SECTION 1: HERO (Matches Image 1)
-                  // ==========================================
-                  Container(
-                    constraints: BoxConstraints(minHeight: size.height * 0.85),
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 40),
-                        const SizedBox(height: 16),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: RichText(
+            body: SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // LOGO (Now scrolls with the page)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+                        child: Image.asset(
+                          'assets/images/veto-logo.webp',
+                          height: 32,
+                          cacheHeight: 64,
+                          cacheWidth: 200,
+                        ),
+                      ),
+                    ),
+                    // ==========================================
+                    // SECTION 1: HERO (Matches Image 1)
+                    // ==========================================
+                    Container(
+                      constraints: BoxConstraints(
+                        minHeight: size.height * 0.85,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 40),
+                          const SizedBox(height: 16),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: RichText(
+                              textAlign: TextAlign.center,
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 68,
+                                  fontWeight: FontWeight.w900,
+                                  height: 0.95,
+                                  letterSpacing: -1.5,
+                                  fontFamily: Theme.of(
+                                    context,
+                                  ).textTheme.bodyLarge?.fontFamily,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: 'LESS\nCHOOSING\n',
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: 'MORE\nWATCHING',
+                                    style: TextStyle(color: AppColors.primary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Turn the 45-minute debate into a 5-minute game. Match on a movie before the popcorn gets cold.',
                             textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600, // Adapts to mode
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+
+                          // Button 1: Create Room (Red)
+                          // Button 1: Create Room (Red)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 60,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              // THE FIX: If _isCreatingRoom is true, set onPressed to null to completely disable the button!
+                              onPressed: _isCreatingRoom
+                                  ? null
+                                  : () async {
+                                      // 1. Instantly update the UI to show the loading spinner
+                                      setState(() {
+                                        _isCreatingRoom = true;
+                                      });
+
+                                      try {
+                                        // 2. Create the room in the database
+                                        final deviceId =
+                                            await DeviceIdService.id;
+                                        String newRoomCode = await roomService
+                                            .createRoom(deviceId);
+
+                                        // 3. Navigate to the Waiting Room
+                                        if (context.mounted) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  WaitingRoomScreen(
+                                                    roomCode: newRoomCode,
+                                                    isHost: true,
+                                                    playerDeviceId: deviceId,
+                                                  ),
+                                            ),
+                                          ).then((_) {
+                                            // Optional: Reset the loading state if the user taps the back button to return to this screen
+                                            if (mounted) {
+                                              setState(
+                                                () => _isCreatingRoom = false,
+                                              );
+                                            }
+                                          });
+                                        }
+                                      } catch (e) {
+                                        // If the database fails (e.g., no internet), turn the button back on
+                                        debugPrint("Error creating room: $e");
+                                        if (mounted) {
+                                          setState(
+                                            () => _isCreatingRoom = false,
+                                          );
+                                        }
+                                      }
+                                    },
+
+                              child: _isCreatingRoom
+                                  ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 3,
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.add, size: 20),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'CREATE ROOM',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Button 2: Join Room (Adapts to mode)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 60,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                // Lighter grey in dark mode so it doesn't blend into the black background
+                                backgroundColor: isDark
+                                    ? Colors.grey.shade800
+                                    : const Color(0xFF1A1A1A),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const JoinRoomScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.people_alt_rounded, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'JOIN ROOM',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 40),
+                          Text(
+                            'SEE HOW IT WORKS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2.0,
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.grey.shade400,
+                            size: 32,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ==========================================
+                    // SECTION 2: WHAT IS VETO?
+                    // ==========================================
+                    Container(
+                      constraints: BoxConstraints(
+                        minHeight:
+                            size.height *
+                            0.85, // Forces this section to take up the whole screen
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment
+                            .center, // Centers everything vertically
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
                             text: TextSpan(
                               style: TextStyle(
-                                fontSize: 68,
+                                fontSize:
+                                    32, // Slightly larger to command the empty space
                                 fontWeight: FontWeight.w900,
-                                height: 0.95,
-                                letterSpacing: -1.5,
+                                letterSpacing: -0.5,
                                 fontFamily: Theme.of(
                                   context,
                                 ).textTheme.bodyLarge?.fontFamily,
                               ),
                               children: [
                                 TextSpan(
-                                  text: 'LESS\nCHOOSING\n',
+                                  text: 'WHAT IS ',
                                   style: TextStyle(
                                     color: isDark
                                         ? Colors.white
@@ -108,406 +319,205 @@ class _LandingScreenState extends State<LandingScreen> {
                                   ),
                                 ),
                                 const TextSpan(
-                                  text: 'MORE\nWATCHING',
+                                  text: 'VETO?',
                                   style: TextStyle(color: AppColors.primary),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Turn the 45-minute debate into a 5-minute game. Match on a movie before the popcorn gets cold.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600, // Adapts to mode
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // Button 1: Create Room (Red)
-                        // Button 1: Create Room (Red)
-                        SizedBox(
-                          width: double.infinity,
-                          height: 60,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            // THE FIX: If _isCreatingRoom is true, set onPressed to null to completely disable the button!
-                            onPressed: _isCreatingRoom
-                                ? null
-                                : () async {
-                                    // 1. Instantly update the UI to show the loading spinner
-                                    setState(() {
-                                      _isCreatingRoom = true;
-                                    });
-
-                                    try {
-                                      // 2. Create the room in the database
-                                      final deviceId = await DeviceIdService.id;
-                                      String newRoomCode = await roomService
-                                          .createRoom(deviceId);
-
-                                      // 3. Navigate to the Waiting Room
-                                      if (context.mounted) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                WaitingRoomScreen(
-                                                  roomCode: newRoomCode,
-                                                  isHost: true,
-                                                  playerDeviceId: deviceId,
-                                                ),
-                                          ),
-                                        ).then((_) {
-                                          // Optional: Reset the loading state if the user taps the back button to return to this screen
-                                          if (mounted) {
-                                            setState(
-                                              () => _isCreatingRoom = false,
-                                            );
-                                          }
-                                        });
-                                      }
-                                    } catch (e) {
-                                      // If the database fails (e.g., no internet), turn the button back on
-                                      debugPrint("Error creating room: $e");
-                                      if (mounted) {
-                                        setState(() => _isCreatingRoom = false);
-                                      }
-                                    }
-                                  },
-
-                            child: _isCreatingRoom
-                                ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 3,
-                                    ),
-                                  )
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.add, size: 20),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'CREATE ROOM',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.0,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Button 2: Join Room (Adapts to mode)
-                        SizedBox(
-                          width: double.infinity,
-                          height: 60,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              // Lighter grey in dark mode so it doesn't blend into the black background
-                              backgroundColor: isDark
-                                  ? Colors.grey.shade800
-                                  : const Color(0xFF1A1A1A),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const JoinRoomScreen(),
-                                ),
-                              );
-                            },
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.people_alt_rounded, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'JOIN ROOM',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 40),
-                        Text(
-                          'SEE HOW IT WORKS',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2.0,
-                            color: Colors.grey.shade400,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: Colors.grey.shade400,
-                          size: 32,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ==========================================
-                  // SECTION 2: WHAT IS VETO?
-                  // ==========================================
-                  Container(
-                    constraints: BoxConstraints(
-                      minHeight:
-                          size.height *
-                          0.85, // Forces this section to take up the whole screen
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment
-                          .center, // Centers everything vertically
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize:
-                                  32, // Slightly larger to command the empty space
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                              fontFamily: Theme.of(
-                                context,
-                              ).textTheme.bodyLarge?.fontFamily,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'WHAT IS ',
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                              const TextSpan(
-                                text: 'VETO?',
-                                style: TextStyle(color: AppColors.primary),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 32,
-                        ), // Increased spacing for breathing room
-                        Text(
-                          'Veto is the ultimate group decision-making tool for your next movie night. Think "Tinder for movies"—you and your friends swipe through curated lists of titles, liking what you want to watch and vetoing what you don\'t.',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade700,
-                            height:
-                                1.7, // Increased line height for better readability
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'No more 45-minute debates or scrolling through thousands of options on Netflix. When everyone in your room likes the same movie, it\'s a match!',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade700,
-                            height: 1.7,
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // NEW: A stylized highlight box to fill space and add a premium touch
-                        Container(
-                          width: double
-                              .infinity, // Ensures the box still stretches across the screen
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.primary.withValues(alpha: 0.1)
-                                : AppColors.primary.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(
-                                alpha: isDark ? 0.3 : 0.15,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            "The average person spends over 100 hours a year just deciding what to watch. Take that time back.",
-                            textAlign:
-                                TextAlign.center, // Centers the text nicely
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight
-                                  .w600, // Slightly bolder to make it pop
-                              color: isDark
-                                  ? Colors.grey.shade300
-                                  : AppColors.primary,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ==========================================
-                  // SECTION 3: HOW IT WORKS (Matches Image 3)
-                  // ==========================================
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32.0,
-                      vertical: 20.0,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                              fontFamily: Theme.of(
-                                context,
-                              ).textTheme.bodyLarge?.fontFamily,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'HOW IT ',
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ), // Adapts to mode
-                              ),
-                              const TextSpan(
-                                text: 'WORKS',
-                                style: TextStyle(color: AppColors.primary),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        _buildStepCard(
-                          icon: Icons.meeting_room_rounded,
-                          title: '1. Create or Join',
-                          description:
-                              'Start a new room and share the code, or jump into a friend\'s session instantly.',
-                          isDark: isDark, // Pass the mode down
-                        ),
-                        const SizedBox(height: 16),
-                        _buildStepCard(
-                          icon: Icons.swipe_rounded,
-                          title: '2. Swipe on Movies',
-                          description:
-                              'Everyone swipes independently on the same deck of films. Right for yes, left for no.',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildStepCard(
-                          icon: Icons.celebration_rounded,
-                          title: '3. Find a Winner',
-                          description:
-                              'As soon as there\'s a group consensus, we\'ll notify everyone. Pop the popcorn!',
-                          isDark: isDark,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ==========================================
-                  // SECTION 4: FOOTER
-                  // ==========================================
-                  Padding(
-                    padding: const EdgeInsets.only(top: 60.0, bottom: 40.0),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Text(
-                            'VETO',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
-                              letterSpacing: -1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
+                          const SizedBox(
+                            height: 32,
+                          ), // Increased spacing for breathing room
                           Text(
-                            '© ${DateTime.now().year} VETO. All rights reserved.',
+                            'Veto is the ultimate group decision-making tool for your next movie night. Think "Tinder for movies"—you and your friends swipe through curated lists of titles, liking what you want to watch and vetoing what you don\'t.',
                             style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade500,
+                              fontSize: 16,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade700,
+                              height:
+                                  1.7, // Increased line height for better readability
                             ),
                           ),
-                          const SizedBox(height: 32),
-
-                          // TMDB API Legal Attribution
-                          SizedBox(
-                            width:
-                                280, // This locks the logo and text into a single, perfectly centered block
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Image.asset(
-                                  'assets/images/tmdb-logo.webp',
-                                  width: 36,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'This product uses the TMDB API but is not endorsed or certified by TMDB.',
-                                    textAlign: TextAlign.left,
-                                    style: TextStyle(
-                                      fontSize: 8,
-                                      color: Colors.grey.shade500,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
                           const SizedBox(height: 24),
+                          Text(
+                            'No more 45-minute debates or scrolling through thousands of options on Netflix. When everyone in your room likes the same movie, it\'s a match!',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade700,
+                              height: 1.7,
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+
+                          // NEW: A stylized highlight box to fill space and add a premium touch
+                          Container(
+                            width: double
+                                .infinity, // Ensures the box still stretches across the screen
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.primary.withValues(alpha: 0.1)
+                                  : AppColors.primary.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(
+                                  alpha: isDark ? 0.3 : 0.15,
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              "The average person spends over 100 hours a year just deciding what to watch. Take that time back.",
+                              textAlign:
+                                  TextAlign.center, // Centers the text nicely
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight
+                                    .w600, // Slightly bolder to make it pop
+                                color: isDark
+                                    ? Colors.grey.shade300
+                                    : AppColors.primary,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ],
+
+                    // ==========================================
+                    // SECTION 3: HOW IT WORKS (Matches Image 3)
+                    // ==========================================
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32.0,
+                        vertical: 20.0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                                fontFamily: Theme.of(
+                                  context,
+                                ).textTheme.bodyLarge?.fontFamily,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: 'HOW IT ',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ), // Adapts to mode
+                                ),
+                                const TextSpan(
+                                  text: 'WORKS',
+                                  style: TextStyle(color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          _buildStepCard(
+                            icon: Icons.meeting_room_rounded,
+                            title: '1. Create or Join',
+                            description:
+                                'Start a new room and share the code, or jump into a friend\'s session instantly.',
+                            isDark: isDark, // Pass the mode down
+                          ),
+                          const SizedBox(height: 16),
+                          _buildStepCard(
+                            icon: Icons.swipe_rounded,
+                            title: '2. Swipe on Movies',
+                            description:
+                                'Everyone swipes independently on the same deck of films. Right for yes, left for no.',
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildStepCard(
+                            icon: Icons.celebration_rounded,
+                            title: '3. Find a Winner',
+                            description:
+                                'As soon as there\'s a group consensus, we\'ll notify everyone. Pop the popcorn!',
+                            isDark: isDark,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ==========================================
+                    // SECTION 4: FOOTER
+                    // ==========================================
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60.0, bottom: 40.0),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            const Text(
+                              'VETO',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                                letterSpacing: -1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '© ${DateTime.now().year} VETO. All rights reserved.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+
+                            // TMDB API Legal Attribution
+                            SizedBox(
+                              width:
+                                  280, // This locks the logo and text into a single, perfectly centered block
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    'assets/images/tmdb-logo.webp',
+                                    width: 36,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'This product uses the TMDB API but is not endorsed or certified by TMDB.',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.grey.shade500,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ), // SafeArea
         ],
       ),
     );

@@ -8,8 +8,6 @@ import 'package:veto/features/rooms/widgets/qr_code_widget.dart';
 import 'package:veto/features/rooms/widgets/player_card_widget.dart';
 import 'landing_screen.dart';
 
-
-
 class WaitingRoomScreen extends StatefulWidget {
   final String roomCode;
   final bool isHost;
@@ -63,23 +61,22 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
               );
             }
           }
-           // 2. IF THE ROOM EXISTS, CHECK THE STATUS AND ROSTER
-           else {
-             final data = snapshot.data() as Map<String, dynamic>;
-             // Update host status based on stored hostId
-             final String? hostId = data['hostId']?.toString();
-             final bool isHost = hostId == widget.playerDeviceId;
-             if (_isHost != isHost && mounted) {
-               setState(() {
-                 _isHost = isHost;
-               });
-             }
-             final List<dynamic> connectedPlayers =
-                 data['connectedPlayers'] ?? [];
+          // 2. IF THE ROOM EXISTS, CHECK THE STATUS AND ROSTER
+          else {
+            final data = snapshot.data() as Map<String, dynamic>;
+            // Update host status based on stored hostId
+            final String? hostId = data['hostId']?.toString();
+            final bool isHost = hostId == widget.playerDeviceId;
+            if (_isHost != isHost && mounted) {
+              setState(() {
+                _isHost = isHost;
+              });
+            }
+            final List<dynamic> connectedPlayers =
+                data['connectedPlayers'] ?? [];
 
             // NEW: Check if this specific user was kicked!
-            if (!_isHost &&
-                !connectedPlayers.contains(widget.playerDeviceId)) {
+            if (!_isHost && !connectedPlayers.contains(widget.playerDeviceId)) {
               if (mounted) {
                 _roomSubscription?.cancel();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -159,7 +156,9 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         barrierDismissible: false,
         builder: (context) => AlertDialog(
           title: const Text('End Session?'),
-          content: const Text('This will delete the room for all players. Are you sure?'),
+          content: const Text(
+            'This will delete the room for all players. Are you sure?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -1001,8 +1000,10 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                                 setDialogState(() {
                                                   if (checked == true) {
                                                     selectedLanguages.add(lang);
-                                                   } else {
-                                                     selectedLanguages.remove(lang);
+                                                  } else {
+                                                    selectedLanguages.remove(
+                                                      lang,
+                                                    );
                                                   }
                                                 });
                                               },
@@ -1146,338 +1147,342 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
-        ),
-        // NEW: The Host Settings Icon
-        actions: [
-          if (_isHost)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: IconButton(
-                icon: const Icon(Icons.tune_rounded),
-                color: colorScheme.primary,
-                splashColor: colorScheme.primary.withValues(alpha: 0.1),
-                onPressed: () {
-                  _showHostSettingsModal();
-                },
+        backgroundColor: bgColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
+          ),
+          // NEW: The Host Settings Icon
+          actions: [
+            if (_isHost)
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: IconButton(
+                  icon: const Icon(Icons.tune_rounded),
+                  color: colorScheme.primary,
+                  splashColor: colorScheme.primary.withValues(alpha: 0.1),
+                  onPressed: () {
+                    _showHostSettingsModal();
+                  },
+                ),
               ),
-            ),
-        ],
-      ),
-      // We still use StreamBuilder to draw the UI live
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('rooms')
-            .doc(widget.roomCode)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          ],
+        ),
+        // We still use StreamBuilder to draw the UI live
+        body: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('rooms')
+              .doc(widget.roomCode)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          final List<dynamic> connectedPlayers = data['connectedPlayers'] ?? [];
-          final int playerCount = connectedPlayers.length;
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            final List<dynamic> connectedPlayers =
+                data['connectedPlayers'] ?? [];
+            final int playerCount = connectedPlayers.length;
 
-          return SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
+            return SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
 
-                        // MOVED BACK: PEOPLE WAITING COUNT IS ON TOP
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.people_alt_rounded,
-                              color: colorScheme.primary,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$playerCount People Waiting',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
+                          // MOVED BACK: PEOPLE WAITING COUNT IS ON TOP
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.people_alt_rounded,
+                                color: colorScheme.primary,
+                                size: 18,
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // ROOM CODE CARD (Now sits below the count)
-                        Container(
-                          decoration: BoxDecoration(
-                            color: theme.brightness == Brightness.light
-                                ? Colors.white
-                                : colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                              const SizedBox(width: 8),
+                              Text(
+                                '$playerCount People Waiting',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          child: IntrinsicHeight(
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 4,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primary,
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(16),
-                                      bottomLeft: Radius.circular(16),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(20.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'ROOM CODE',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.5,
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              widget.roomCode,
-                                              style: TextStyle(
-                                                fontSize: 28,
-                                                fontWeight: FontWeight.w900,
-                                                color: colorScheme.onSurface,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            GestureDetector(
-                                              onTap: () {
-                                                Clipboard.setData(
-                                                  ClipboardData(
-                                                    text: widget.roomCode,
-                                                  ),
-                                                );
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Room code copied to clipboard!',
-                                                    ),
-                                                    backgroundColor:
-                                                        Colors.green,
-                                                  ),
-                                                );
-                                              },
-                                              child: Icon(
-                                                Icons.copy,
-                                                color: colorScheme.onSurface
-                                                    .withValues(alpha: 0.5),
-                                                size: 20,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            GestureDetector(
-                                              onTap: () => _showQRCodeDialog(
-                                                widget.roomCode,
-                                              ),
-                                              child: Icon(
-                                                Icons.qr_code,
-                                                color: colorScheme.onSurface
-                                                    .withValues(alpha: 0.5),
-                                                size: 20,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                          const SizedBox(height: 24),
+
+                          // ROOM CODE CARD (Now sits below the count)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: theme.brightness == Brightness.light
+                                  ? Colors.white
+                                  : colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // PLAYER GRID
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
+                            child: IntrinsicHeight(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 4,
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary,
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(16),
+                                        bottomLeft: Radius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(20.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'ROOM CODE',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1.5,
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                widget.roomCode,
+                                                style: TextStyle(
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: colorScheme.onSurface,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  Clipboard.setData(
+                                                    ClipboardData(
+                                                      text: widget.roomCode,
+                                                    ),
+                                                  );
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Room code copied to clipboard!',
+                                                      ),
+                                                      backgroundColor:
+                                                          Colors.green,
+                                                    ),
+                                                  );
+                                                },
+                                                child: Icon(
+                                                  Icons.copy,
+                                                  color: colorScheme.onSurface
+                                                      .withValues(alpha: 0.5),
+                                                  size: 20,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              GestureDetector(
+                                                onTap: () => _showQRCodeDialog(
+                                                  widget.roomCode,
+                                                ),
+                                                child: Icon(
+                                                  Icons.qr_code,
+                                                  color: colorScheme.onSurface
+                                                      .withValues(alpha: 0.5),
+                                                  size: 20,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                          itemCount: playerCount,
-                          itemBuilder: (context, index) {
-                            final String targetDeviceId =
-                                connectedPlayers[index];
-
-                            final Map<String, dynamic> playerProfiles =
-                                data['playerProfiles'] ?? {};
-
-                            final Map<String, dynamic> currentProfile =
-                                playerProfiles[targetDeviceId] ??
-                                {
-                                  'name': 'Player ${index + 1}',
-                                  'avatar':
-                                      availableAvatars[index %
-                                          availableAvatars.length],
-                                };
-
-                            bool isCurrentUser =
-                                targetDeviceId == widget.playerDeviceId;
-                            String status = index == 2
-                                ? 'CHOOSING SNACKS...'
-                                : 'READY TO VETO';
-
-                            return PlayerCard(
-                              name: currentProfile['name']!,
-                              imageUrl: currentProfile['avatar']!,
-                              status: status,
-                              isYou: isCurrentUser,
-                              isHostView: _isHost,
-                              targetDeviceId: targetDeviceId,
-                              roomCode: widget.roomCode,
-                              colorScheme: colorScheme,
-                              brightness: theme.brightness,
-                              onEditProfile: () => _showEditProfileDialog(currentProfile['name']!, currentProfile['avatar']!),
-                              onKick: () async {
-                                await FirebaseFirestore.instance
-                                    .collection('rooms')
-                                    .doc(widget.roomCode)
-                                    .update({
-                                      'connectedPlayers': FieldValue.arrayRemove([targetDeviceId]),
-                                      'playerProfiles.$targetDeviceId': FieldValue.delete(),
-                                    });
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 40),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // FOOTER CONTROLS
-                Container(
-                  padding: const EdgeInsets.only(
-                    left: 24,
-                    right: 24,
-                    bottom: 32,
-                    top: 16,
-                  ),
-                  decoration: BoxDecoration(color: bgColor),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 60,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isHost
-                                ? colorScheme.primary
-                                : Colors.grey.shade400,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          onPressed: _isHost
-                              ? () async {
+
+                          const SizedBox(height: 32),
+
+                          // PLAYER GRID
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 0.75,
+                                ),
+                            itemCount: playerCount,
+                            itemBuilder: (context, index) {
+                              final String targetDeviceId =
+                                  connectedPlayers[index];
+
+                              final Map<String, dynamic> playerProfiles =
+                                  data['playerProfiles'] ?? {};
+
+                              final Map<String, dynamic> currentProfile =
+                                  playerProfiles[targetDeviceId] ??
+                                  {
+                                    'name': 'Player ${index + 1}',
+                                    'avatar':
+                                        availableAvatars[index %
+                                            availableAvatars.length],
+                                  };
+
+                              bool isCurrentUser =
+                                  targetDeviceId == widget.playerDeviceId;
+                              String status = index == 2
+                                  ? 'CHOOSING SNACKS...'
+                                  : 'READY TO VETO';
+
+                              return PlayerCard(
+                                name: currentProfile['name']!,
+                                imageUrl: currentProfile['avatar']!,
+                                status: status,
+                                isYou: isCurrentUser,
+                                isHostView: _isHost,
+                                targetDeviceId: targetDeviceId,
+                                roomCode: widget.roomCode,
+                                colorScheme: colorScheme,
+                                brightness: theme.brightness,
+                                onEditProfile: () => _showEditProfileDialog(
+                                  currentProfile['name']!,
+                                  currentProfile['avatar']!,
+                                ),
+                                onKick: () async {
                                   await FirebaseFirestore.instance
                                       .collection('rooms')
                                       .doc(widget.roomCode)
-                                      .update({'status': 'voting'});
-                                }
-                              : null,
-                          child: Text(
-                            _isHost
-                                ? 'START SESSION'
-                                : 'WAITING FOR HOST...',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2.0,
-                            ),
+                                      .update({
+                                        'connectedPlayers':
+                                            FieldValue.arrayRemove([
+                                              targetDeviceId,
+                                            ]),
+                                        'playerProfiles.$targetDeviceId':
+                                            FieldValue.delete(),
+                                      });
+                                },
+                              );
+                            },
                           ),
-                        ),
+                          const SizedBox(height: 40),
+                        ],
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                  ),
 
-                      SizedBox(
-                        width: double.infinity,
-                        height: 60,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colorScheme.onSurface.withValues(
-                              alpha: 0.6,
-                            ),
-                            side: BorderSide(
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.1,
+                  // FOOTER CONTROLS
+                  Container(
+                    padding: const EdgeInsets.only(
+                      left: 24,
+                      right: 24,
+                      bottom: 32,
+                      top: 16,
+                    ),
+                    decoration: BoxDecoration(color: bgColor),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 60,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isHost
+                                  ? colorScheme.primary
+                                  : Colors.grey.shade400,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          onPressed: _leaveRoom,
-                          child: const Text(
-                            'LEAVE ROOM',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2.0,
+                            onPressed: _isHost
+                                ? () async {
+                                    await FirebaseFirestore.instance
+                                        .collection('rooms')
+                                        .doc(widget.roomCode)
+                                        .update({'status': 'voting'});
+                                  }
+                                : null,
+                            child: Text(
+                              _isHost ? 'START SESSION' : 'WAITING FOR HOST...',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2.0,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 60,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                              side: BorderSide(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.1,
+                                ),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            onPressed: _leaveRoom,
+                            child: const Text(
+                              'LEAVE ROOM',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
-      )
     );
   }
-
-
 }
