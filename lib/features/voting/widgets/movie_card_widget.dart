@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'dart:ui';
 import 'package:veto/core/themes/app_colors.dart';
+import 'package:veto/features/voting/services/movie_details_service.dart';
 
 class MovieCard extends StatefulWidget {
   final Map<String, dynamic> movie;
@@ -36,61 +34,20 @@ class _MovieCardState extends State<MovieCard> {
 
   // --- THE LAZY LOADER ---
   Future<void> _fetchAdditionalDetails() async {
-    final String apiKey = dotenv.env['TMDB_API_KEY'] ?? '';
     final movieId = widget.movie['id'];
     if (movieId == null) return;
 
-    // TMDB allows us to append credits and reviews into a single, blazing-fast API call
-    final url = Uri.parse(
-      'https://api.themoviedb.org/3/movie/$movieId?api_key=$apiKey&append_to_response=credits,reviews',
-    );
+    final details = await MovieDetailsService().getDetails(movieId);
 
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        // 1. Extract Director
-        final crew = data['credits']?['crew'] as List? ?? [];
-        final directorObj = crew.firstWhere(
-          (member) => member['job'] == 'Director',
-          orElse: () => null,
-        );
-        final directorName = directorObj != null
-            ? directorObj['name']
-            : 'Unknown';
-
-        // 2. Extract Top 4 Cast Members
-        final castList = data['credits']?['cast'] as List? ?? [];
-        final topCast = castList
-            .take(4)
-            .map((c) => c['name'].toString())
-            .toList();
-
-        // 3. Extract Top 2 Reviews
-        final reviewList = data['reviews']?['results'] as List? ?? [];
-        final topReviews = reviewList
-            .take(2)
-            .map(
-              (r) => {
-                'author': r['author'].toString(),
-                'content': r['content'].toString(),
-              },
-            )
-            .toList();
-
-        if (mounted) {
-          setState(() {
-            _director = directorName;
-            _cast = topCast;
-            _reviews = topReviews;
-            _isLoadingDetails = false;
-          });
+    if (mounted) {
+      setState(() {
+        if (details != null) {
+          _director = details.director;
+          _cast = details.cast;
+          _reviews = details.reviews;
         }
-      }
-    } catch (e) {
-      debugPrint("Error fetching details: $e");
-      if (mounted) setState(() => _isLoadingDetails = false);
+        _isLoadingDetails = false;
+      });
     }
   }
 
@@ -201,6 +158,23 @@ class _MovieCardState extends State<MovieCard> {
                     posterUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (c, e, s) => const SizedBox.shrink(),
+                    cacheHeight: 800,
+                    cacheWidth: 500,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey.shade900,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                : null,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
 

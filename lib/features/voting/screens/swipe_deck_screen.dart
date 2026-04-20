@@ -31,7 +31,9 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   // --- VARIABLES ---
   final CardSwiperController controller = CardSwiperController();
   StreamSubscription<DocumentSnapshot>? _matchSubscription;
+  StreamSubscription<DocumentSnapshot>? _roomSubscription;
   String? _lastMatchedMovieId;
+  bool _isHost = false;
   List<Map<String, dynamic>> movies = [];
   bool isLoading = true;
   int currentPage = 1;
@@ -65,11 +67,13 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     super.initState();
     _fetchMovies();
     _listenForMatches();
+    _listenToRoom();
   }
 
   @override
   void dispose() {
     _matchSubscription?.cancel();
+    _roomSubscription?.cancel();
     controller.dispose();
     super.dispose();
   }
@@ -128,6 +132,25 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
               _lastMatchedMovieId = matchId;
               _isMatchOverlayOpen = true; // Mark the overlay as open!
               _showMatchOverlay(match);
+            }
+          }
+        });
+  }
+
+  void _listenToRoom() {
+    _roomSubscription = FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(widget.roomCode)
+        .snapshots()
+        .listen((snapshot) {
+          if (snapshot.exists) {
+            final data = snapshot.data() as Map<String, dynamic>;
+            final String? hostId = data['hostId']?.toString();
+            final bool isHost = hostId == widget.playerDeviceId;
+            if (_isHost != isHost && mounted) {
+              setState(() {
+                _isHost = isHost;
+              });
             }
           }
         });
@@ -497,24 +520,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            onPressed: () async {
-                              try {
-                                final roomRef = FirebaseFirestore.instance
-                                    .collection('rooms')
-                                    .doc(widget.roomCode);
-                                await roomRef.delete();
-                              } catch (e) {
-                                debugPrint("Error deleting room: $e");
-                              }
-                              if (!context.mounted) return;
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LandingScreen(),
-                                ),
-                                (route) => false,
-                              );
-                            },
+                            onPressed: _leaveRoom,
                             icon: const Icon(
                               Icons.home,
                               color: Colors.white,
@@ -543,94 +549,163 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     );
   }
 
+  Future<void> _leaveRoom() async {
+    _matchSubscription?.cancel();
+    _roomSubscription?.cancel();
+
+    if (_isHost) {
+      await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(widget.roomCode)
+          .delete();
+    } else {
+      await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(widget.roomCode)
+          .update({
+            'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
+            'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(),
+          });
+    }
+
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LandingScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   // --- BUILD METHOD ---
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
-        ),
-      ),
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : movies.isEmpty
-          ? _buildEmptyState() // <-- THE FIX: Calls our new premium UI
-          : Column(
-              children: [
-                // 1. Reduced top spacing to lift the card up slightly
-                const SizedBox(height: 8),
-
-                Expanded(
-                  child: CardSwiper(
-                    controller: controller,
-                    cardsCount: movies.length,
-                    onSwipe: _onSwipe,
-                    onEnd: _onEnd,
-                    // 2. Added bottom padding to shrink the height of the card
-                    padding: const EdgeInsets.only(
-                      left: 20.0,
-                      right: 20.0,
-                      bottom: 32.0,
-                    ),
-                    allowedSwipeDirection:
-                        const AllowedSwipeDirection.symmetric(horizontal: true),
-                    numberOfCardsDisplayed: 2,
-                    scale: 0.95,
-                    backCardOffset: const Offset(0, -15),
-                    cardBuilder:
-                        (context, index, percentThresholdX, percentThresholdY) {
-                          return MovieCard(
-                            key: ValueKey(movies[index]['id']),
-                            movie: movies[index],
-                          );
-                        },
-                  ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        if (_isHost) {
+          final bool? confirm = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Text('End Session?'),
+              content: const Text(
+                'This will delete the room for all players. Are you sure?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
                 ),
-
-                const SizedBox(height: 24),
-
-                // 4. Reduced bottom padding from 40.0 to 20.0
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildCircularButton(
-                        icon: Icons.close,
-                        iconColor: Colors.white,
-                        backgroundColor: AppColors.primary,
-                        size: 76, // Shaved down from 80
-                        shadowColor: AppColors.primary.withValues(alpha: 0.4),
-                        onTap: () => controller.swipe(CardSwiperDirection.left),
-                      ),
-                      const SizedBox(width: 42),
-                      _buildCircularButton(
-                        icon: Icons.favorite,
-                        iconColor: Colors.white,
-                        backgroundColor: AppColors.primary,
-                        size: 76, // Shaved down from 80
-                        shadowColor: AppColors.primary.withValues(alpha: 0.4),
-                        onTap: () =>
-                            controller.swipe(CardSwiperDirection.right),
-                      ),
-                    ],
-                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Delete Room & Leave'),
                 ),
-                const SizedBox(height: 32),
               ],
             ),
-    ); // <-- This closes the Scaffold!
+          );
+          if (confirm == true) {
+            await _leaveRoom();
+          }
+        } else {
+          await _leaveRoom();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
+          ),
+        ),
+        body: isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : movies.isEmpty
+            ? _buildEmptyState() // <-- THE FIX: Calls our new premium UI
+            : Column(
+                children: [
+                  // 1. Reduced top spacing to lift the card up slightly
+                  const SizedBox(height: 8),
+
+                  Expanded(
+                    child: CardSwiper(
+                      controller: controller,
+                      cardsCount: movies.length,
+                      onSwipe: _onSwipe,
+                      onEnd: _onEnd,
+                      // 2. Added bottom padding to shrink the height of the card
+                      padding: const EdgeInsets.only(
+                        left: 20.0,
+                        right: 20.0,
+                        bottom: 32.0,
+                      ),
+                      allowedSwipeDirection:
+                          const AllowedSwipeDirection.symmetric(
+                            horizontal: true,
+                          ),
+                      numberOfCardsDisplayed: 2,
+                      scale: 0.95,
+                      backCardOffset: const Offset(0, -15),
+                      cardBuilder:
+                          (
+                            context,
+                            index,
+                            percentThresholdX,
+                            percentThresholdY,
+                          ) {
+                            return MovieCard(
+                              key: ValueKey(movies[index]['id']),
+                              movie: movies[index],
+                            );
+                          },
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 4. Reduced bottom padding from 40.0 to 20.0
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildCircularButton(
+                          icon: Icons.close,
+                          iconColor: Colors.white,
+                          backgroundColor: AppColors.primary,
+                          size: 76, // Shaved down from 80
+                          shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                          onTap: () =>
+                              controller.swipe(CardSwiperDirection.left),
+                        ),
+                        const SizedBox(width: 42),
+                        _buildCircularButton(
+                          icon: Icons.favorite,
+                          iconColor: Colors.white,
+                          backgroundColor: AppColors.primary,
+                          size: 76, // Shaved down from 80
+                          shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                          onTap: () =>
+                              controller.swipe(CardSwiperDirection.right),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+      ),
+    );
   }
 
   Widget _buildCircularButton({
@@ -724,36 +799,15 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                   ),
                   elevation: 0,
                 ),
-                onPressed: () async {
-                  // Deleting the room triggers the existing listener in the WaitingRoom/GenreScreen
-                  // to automatically kick all other players back to the home screen gracefully!
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('rooms')
-                        .doc(widget.roomCode)
-                        .delete();
-                  } catch (e) {
-                    debugPrint("Error ending session: $e");
-                  }
-
-                  if (mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LandingScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(
-                  Icons.refresh_rounded,
+                onPressed: _leaveRoom,
+                icon: Icon(
+                  _isHost ? Icons.refresh_rounded : Icons.exit_to_app_rounded,
                   color: Colors.white,
                   size: 20,
                 ),
-                label: const Text(
-                  "END SESSION & RESTART",
-                  style: TextStyle(
+                label: Text(
+                  _isHost ? "END SESSION & RESTART" : "LEAVE ROOM",
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
@@ -768,5 +822,3 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     );
   }
 }
-
-
