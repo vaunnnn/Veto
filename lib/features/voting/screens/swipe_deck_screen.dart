@@ -34,6 +34,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   StreamSubscription<DocumentSnapshot>? _roomSubscription;
   String? _lastMatchedMovieId;
   bool _isHost = false;
+  bool _navigatedAway = false;
   List<Map<String, dynamic>> movies = [];
   bool isLoading = true;
   int currentPage = 1;
@@ -85,7 +86,19 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         .doc(widget.roomCode)
         .snapshots()
         .listen((snapshot) {
-          if (!snapshot.exists || !mounted) return;
+          if (!mounted) return;
+          if (!snapshot.exists) {
+            // Room deleted, navigate to landing screen
+            if (!_navigatedAway) {
+              _navigatedAway = true;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LandingScreen()),
+                (route) => false,
+              );
+            }
+            return;
+          }
 
           final data = snapshot.data() as Map<String, dynamic>;
 
@@ -143,15 +156,25 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         .doc(widget.roomCode)
         .snapshots()
         .listen((snapshot) {
-          if (snapshot.exists) {
-            final data = snapshot.data() as Map<String, dynamic>;
-            final String? hostId = data['hostId']?.toString();
-            final bool isHost = hostId == widget.playerDeviceId;
-            if (_isHost != isHost && mounted) {
-              setState(() {
-                _isHost = isHost;
-              });
+          if (!snapshot.exists) {
+            // Room deleted, navigate to landing screen
+            if (!_navigatedAway && mounted) {
+              _navigatedAway = true;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LandingScreen()),
+                (route) => false,
+              );
             }
+            return;
+          }
+          final data = snapshot.data() as Map<String, dynamic>;
+          final String? hostId = data['hostId']?.toString();
+          final bool isHost = hostId == widget.playerDeviceId;
+          if (_isHost != isHost && mounted) {
+            setState(() {
+              _isHost = isHost;
+            });
           }
         });
   }
@@ -569,6 +592,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     }
 
     if (mounted) {
+      _navigatedAway = true;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LandingScreen()),
