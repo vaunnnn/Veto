@@ -29,10 +29,12 @@ class WaitingRoomScreen extends StatefulWidget {
 class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
   // This is our background listener that watches for kicks and teleports
   StreamSubscription<DocumentSnapshot>? _roomSubscription;
+  bool _isHost = false;
 
   @override
   void initState() {
     super.initState();
+    _isHost = widget.isHost;
     _listenToRoomEvents();
   }
 
@@ -46,7 +48,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
           // 1. IF THE ROOM NO LONGER EXISTS (Host Deleted It)
           if (!snapshot.exists) {
             // We only show the error to the guests (the host knows they left!)
-            if (mounted && !widget.isHost) {
+            if (mounted && !_isHost) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('The host has closed the session.'),
@@ -61,14 +63,22 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
               );
             }
           }
-          // 2. IF THE ROOM EXISTS, CHECK THE STATUS AND ROSTER
-          else {
-            final data = snapshot.data() as Map<String, dynamic>;
-            final List<dynamic> connectedPlayers =
-                data['connectedPlayers'] ?? [];
+           // 2. IF THE ROOM EXISTS, CHECK THE STATUS AND ROSTER
+           else {
+             final data = snapshot.data() as Map<String, dynamic>;
+             // Update host status based on stored hostId
+             final String? hostId = data['hostId']?.toString();
+             final bool isHost = hostId == widget.playerDeviceId;
+             if (_isHost != isHost && mounted) {
+               setState(() {
+                 _isHost = isHost;
+               });
+             }
+             final List<dynamic> connectedPlayers =
+                 data['connectedPlayers'] ?? [];
 
             // NEW: Check if this specific user was kicked!
-            if (!widget.isHost &&
+            if (!_isHost &&
                 !connectedPlayers.contains(widget.playerDeviceId)) {
               if (mounted) {
                 _roomSubscription?.cancel();
@@ -113,6 +123,64 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
     _roomSubscription?.cancel();
 
     super.dispose();
+  }
+
+  Future<void> _leaveRoom() async {
+    _roomSubscription?.cancel();
+
+    if (_isHost) {
+      await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(widget.roomCode)
+          .delete();
+    } else {
+      await FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(widget.roomCode)
+          .update({
+            'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
+            'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(),
+          });
+    }
+
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LandingScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  Future<bool> _onWillPop() async {
+    if (_isHost) {
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('End Session?'),
+          content: const Text('This will delete the room for all players. Are you sure?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete Room & Leave'),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        await _leaveRoom();
+        return false;
+      }
+      return true;
+    } else {
+      await _leaveRoom();
+      return false;
+    }
   }
 
   // 1. A fun list of pre-made avatars
@@ -933,10 +1001,8 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                                 setDialogState(() {
                                                   if (checked == true) {
                                                     selectedLanguages.add(lang);
-                                                  } else {
-                                                    selectedLanguages.remove(
-                                                      lang,
-                                                    );
+                                                   } else {
+                                                     selectedLanguages.remove(lang);
                                                   }
                                                 });
                                               },
@@ -1077,7 +1143,9 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         ? const Color(0xFFF8F9FA)
         : colorScheme.surface;
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -1090,7 +1158,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
         ),
         // NEW: The Host Settings Icon
         actions: [
-          if (widget.isHost)
+          if (_isHost)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: IconButton(
@@ -1300,7 +1368,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                               imageUrl: currentProfile['avatar']!,
                               status: status,
                               isYou: isCurrentUser,
-                              isHostView: widget.isHost,
+                              isHostView: _isHost,
                               targetDeviceId: targetDeviceId,
                               roomCode: widget.roomCode,
                               colorScheme: colorScheme,
@@ -1340,7 +1408,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                         height: 60,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.isHost
+                            backgroundColor: _isHost
                                 ? colorScheme.primary
                                 : Colors.grey.shade400,
                             foregroundColor: Colors.white,
@@ -1349,7 +1417,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          onPressed: widget.isHost
+                          onPressed: _isHost
                               ? () async {
                                   await FirebaseFirestore.instance
                                       .collection('rooms')
@@ -1358,7 +1426,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                                 }
                               : null,
                           child: Text(
-                            widget.isHost
+                            _isHost
                                 ? 'START SESSION'
                                 : 'WAITING FOR HOST...',
                             style: const TextStyle(
@@ -1388,37 +1456,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          onPressed: () async {
-                            _roomSubscription?.cancel();
-
-                            if (widget.isHost) {
-                              await FirebaseFirestore.instance
-                                  .collection('rooms')
-                                  .doc(widget.roomCode)
-                                  .delete();
-                            } else {
-                              await FirebaseFirestore.instance
-                                  .collection('rooms')
-                                  .doc(widget.roomCode)
-                                  .update({
-                                    'connectedPlayers': FieldValue.arrayRemove([
-                                      widget.playerDeviceId,
-                                    ]),
-                                    'playerProfiles.${widget.playerDeviceId}':
-                                        FieldValue.delete(),
-                                  });
-                            }
-
-                            if (context.mounted) {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LandingScreen(),
-                                ),
-                                (route) => false,
-                              );
-                            }
-                          },
+                          onPressed: _leaveRoom,
                           child: const Text(
                             'LEAVE ROOM',
                             style: TextStyle(
@@ -1437,6 +1475,7 @@ class _WaitingRoomScreenState extends State<WaitingRoomScreen> {
           );
         },
       ),
+      )
     );
   }
 
