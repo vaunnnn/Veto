@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:veto/core/services/device_id_service.dart';
 import 'package:veto/features/rooms/screens/waiting_room_screen.dart';
 import 'package:veto/features/rooms/screens/qr_scan_screen.dart';
 import 'package:veto/features/rooms/services/room_service.dart';
@@ -16,8 +17,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
   final FocusNode _focusNode = FocusNode();
   bool _isLoading = false;
 
-  // Dummy device ID for testing
-  final String myDeviceId = "device_${DateTime.now().millisecondsSinceEpoch}";
+  // Device ID service
+  Future<String> _getDeviceId() async => await DeviceIdService.id;
 
   @override
   void initState() {
@@ -45,7 +46,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
 
     setState(() => _isLoading = true);
 
-    bool success = await _roomService.joinRoom(code, myDeviceId);
+    final deviceId = await _getDeviceId();
+    bool success = await _roomService.joinRoom(code, deviceId);
 
     setState(() => _isLoading = false);
 
@@ -54,7 +56,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
         context,
         MaterialPageRoute(
           builder: (context) =>
-              WaitingRoomScreen(roomCode: code, playerDeviceId: myDeviceId),
+              WaitingRoomScreen(roomCode: code, playerDeviceId: deviceId),
         ),
       );
     } else if (mounted) {
@@ -82,7 +84,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
     final code = result.trim().toUpperCase();
     if (code.length >= 5) {
       setState(() => _isLoading = true);
-      bool success = await _roomService.joinRoom(code, myDeviceId);
+      final deviceId = await _getDeviceId();
+      bool success = await _roomService.joinRoom(code, deviceId);
       setState(() => _isLoading = false);
 
       if (success && mounted) {
@@ -90,7 +93,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
           context,
           MaterialPageRoute(
             builder: (context) =>
-                WaitingRoomScreen(roomCode: code, playerDeviceId: myDeviceId),
+                WaitingRoomScreen(roomCode: code, playerDeviceId: deviceId),
           ),
         );
       } else if (mounted) {
@@ -142,7 +145,10 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.black.withValues(alpha: 0.15), Colors.transparent],
+                  colors: [
+                    Colors.black.withValues(alpha: 0.15),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
@@ -180,7 +186,9 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                             style: TextStyle(
                               fontSize: 14,
                               height: 1.4,
-                              color: colorScheme.onSurface.withValues(alpha: 0.6),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                           ),
                         ),
@@ -211,7 +219,9 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
-                                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.5,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -234,17 +244,21 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                     fontSize: 22,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 4.0,
-                                    color: colorScheme.primary.withValues(alpha: 0.8),
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.8,
+                                    ),
                                   ),
                                   decoration: InputDecoration(
                                     hintText: 'VETO-XXXX',
                                     hintStyle: TextStyle(
                                       color:
                                           theme.brightness == Brightness.light
-                                          ? colorScheme.primary.withValues(alpha: 0.2)
-                                           : colorScheme.onSurface.withValues(
-                                               alpha: 0.4,
-                                             ),
+                                          ? colorScheme.primary.withValues(
+                                              alpha: 0.2,
+                                            )
+                                          : colorScheme.onSurface.withValues(
+                                              alpha: 0.4,
+                                            ),
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 2.0,
                                       fontSize: 20,
@@ -285,6 +299,8 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                                   ),
                                 ),
                               ),
+
+                              const SizedBox(height: 16),
 
                               // Join Room Button
                               SizedBox(

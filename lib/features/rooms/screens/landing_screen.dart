@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:veto/core/themes/app_colors.dart';
+import 'package:veto/core/services/device_id_service.dart';
 import 'join_room_screen.dart';
 import 'waiting_room_screen.dart';
 import '../services/room_service.dart';
@@ -18,7 +19,7 @@ class _LandingScreenState extends State<LandingScreen> {
   @override
   Widget build(BuildContext context) {
     final roomService = RoomService();
-    final String myDeviceId = "device_${DateTime.now().millisecondsSinceEpoch}";
+
     final size = MediaQuery.of(context).size;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -33,6 +34,8 @@ class _LandingScreenState extends State<LandingScreen> {
                   ? 'assets/images/bg-dark.webp' // <-- Update this to your exact dark GIF filename
                   : 'assets/images/bg-light.webp', // <-- Update this to your exact light GIF filename
               fit: BoxFit.cover,
+              cacheHeight: 1080,
+              cacheWidth: 1920,
             ),
           ),
 
@@ -49,13 +52,19 @@ class _LandingScreenState extends State<LandingScreen> {
           // 3. YOUR EXISTING UI
           Scaffold(
             backgroundColor: Colors.transparent,
+            extendBodyBehindAppBar: true,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
+              forceMaterialTransparency: true,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
               centerTitle: true,
               title: Image.asset(
                 'assets/images/veto-logo.webp',
                 height: 32, // Standard height for logos in the AppBar
+                cacheHeight: 64,
+                cacheWidth: 200,
               ),
             ),
             body: SingleChildScrollView(
@@ -81,8 +90,7 @@ class _LandingScreenState extends State<LandingScreen> {
                             textAlign: TextAlign.center,
                             text: TextSpan(
                               style: TextStyle(
-                                fontSize:
-                                    68, // Keeps your massive, premium size for large phones
+                                fontSize: 68,
                                 fontWeight: FontWeight.w900,
                                 height: 0.95,
                                 letterSpacing: -1.5,
@@ -146,8 +154,9 @@ class _LandingScreenState extends State<LandingScreen> {
 
                                     try {
                                       // 2. Create the room in the database
+                                      final deviceId = await DeviceIdService.id;
                                       String newRoomCode = await roomService
-                                          .createRoom(myDeviceId);
+                                          .createRoom(deviceId);
 
                                       // 3. Navigate to the Waiting Room
                                       if (context.mounted) {
@@ -158,7 +167,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                                 WaitingRoomScreen(
                                                   roomCode: newRoomCode,
                                                   isHost: true,
-                                                  playerDeviceId: myDeviceId,
+                                                  playerDeviceId: deviceId,
                                                 ),
                                           ),
                                         ).then((_) {
