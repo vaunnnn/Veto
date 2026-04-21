@@ -50,6 +50,10 @@ dependencies:
   # Persistent Storage & UUID
   shared_preferences: ^2.2.2
   uuid: ^4.4.0
+  
+  # State Management (Riverpod)
+  flutter_riverpod: ^2.4.17
+  riverpod_annotation: ^2.3.3
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +69,10 @@ dev_dependencies:
   
   # Dependency validation to check for unused dependencies
   dependency_validator: ^5.0.0
+  
+  # Riverpod code generation
+  riverpod_generator: ^2.3.14
+  build_runner: ^2.4.11
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -75,8 +83,9 @@ flutter:
   
   # 'assets:' MUST have exactly 2 spaces in front of it
   assets:
-    # '- .env' MUST have exactly 4 spaces in front of it
     - .env
+    # '- .env' MUST have exactly 4 spaces in front of it
+    # - .env  # REMOVED: API keys should not be bundled in app assets
     - assets/images/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

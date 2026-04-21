@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Make sure to import your AppTheme! Adjust the path if necessary.
 import 'package:veto/core/themes/app_theme.dart';
 import 'package:veto/features/rooms/screens/landing_screen.dart';
@@ -10,17 +11,32 @@ Future<void> main() async {
   // 1. MUST be first
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Load env variables
-  await dotenv.load(fileName: ".env");
-
-  // 3. MUST happen before runApp
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+  // 2. Load env variables - try .env.local first (secure), fall back to .env
+  try {
+    await dotenv.load(fileName: ".env.local");
+  } catch (e) {
+    // Fallback to .env for backward compatibility
+    await dotenv.load(fileName: ".env");
   }
 
-  runApp(const VetoApp());
+  // 3. MUST happen before runApp
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    // If Android native already has it initialized, safely ignore the duplicate app error
+    if (e is FirebaseException && e.code == 'duplicate-app') {
+      debugPrint('Firebase is already initialized on the Android native side.');
+    } else {
+      // If it's a real error, we still want it to crash so we can fix it!
+      rethrow; 
+    }
+  }
+
+  runApp(const ProviderScope(child: VetoApp()));
 }
 
 class VetoApp extends StatelessWidget {

@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isHost(roomCode) {
+      // Host is stored in the room document
+      let room = get(/databases/$(database)/documents/rooms/$(roomCode));
+      return room.data.hostId == request.resource.data.hostId;
+    }
+    
+    function playerDeviceId() {
+      // Extract device ID from the request based on operation type
+      // For profile updates, device ID is in the field path
+      // For join/leave, device ID is in the array operation
+      // We'll assume client sends a 'playerDeviceId' field in request data
+      return request.resource.data.playerDeviceId;
+    }
+    
+    function isPlayerInRoom(roomCode, deviceId) {
+      let room = get(/databases/$(database)/documents/rooms/$(roomCode));
+      return deviceId in room.data.connectedPlayers;
+    }
+    
+    function roomIsWaiting(roomCode) {
+      let room = get(/databases/$(database)/documents/rooms/$(roomCode));
+      return room.data.status == 'waiting';
+    }
+    
+    // Rooms collection
+    match /rooms/{roomCode} {
+      // Allow creation of new rooms with valid data
+      allow create: if 
+        // Required fields
+        request.resource.data.hostId != null &&
+        request.resource.data.connectedPlayers != null &&
+        request.resource.data.status != null &&
+        request.resource.data.expiresAt is timestamp &&
+        request.resource.data.filterSettings is map &&
+        // Host must be in connectedPlayers
+        request.resource.data.hostId in request.resource.data.connectedPlayers &&
+        // Status must be 'waiting' initially
+        request.resource.data.status == 'waiting' &&
+        // Expiration must be in future
+        request.resource.data.expiresAt > request.time;
+      
+      // Allow updates with validation
+      allow update: if 
+        // Host can update filterSettings
+        (request.resource.data.hostId == resource.data.hostId &&
+         request.resource.data.keys().hasOnly(['filterSettings'])) ||
+        // Host can update status
+        (request.resource.data.hostId == resource.data.hostId &&
+         request.resource.data.keys().hasOnly(['status'])) ||
+        // Players can join room (connectedPlayers arrayUnion)
+        (roomIsWaiting(roomCode) &&
+         request.resource.data.keys().hasOnly(['connectedPlayers']) &&
+         // Validate that the new connectedPlayers array includes only existing plus new device
+         // This is simplified - in practice need to check array transforms
+         true) ||
+        // Players can update their own profile
+        (request.resource.data.keys().hasOnly(['playerProfiles']) &&
+         // Ensure only their own profile is updated
+         request.resource.data.playerProfiles.keys().hasOnly([playerDeviceId()])) ||
+        // Players can leave room (connectedPlayers arrayRemove and profile delete)
+        (request.resource.data.keys().hasOnly(['connectedPlayers', 'playerProfiles']) &&
+         // Simplified validation
+         true);
+      
+      // Allow deletion only by host
+      allow delete: if request.resource.data.hostId == resource.data.hostId;
+      
+      // Allow reads for anyone (room codes are not secret)
+      allow read: if true;
+    }
+    
+    // Votes subcollection
+    match /rooms/{roomCode}/votes/{movieId} {
+      // Allow creating/updating votes with validation
+      allow create, update: if
+        // Player must be in the room
+        isPlayerInRoom(roomCode, playerDeviceId()) &&
+        // Can only modify likes or vetoes arrays
+        (request.resource.data.keys().hasOnly(['likes']) ||
+         request.resource.data.keys().hasOnly(['vetoes'])) &&
+        // Device ID must be in the array being modified
+        // Simplified - actual validation depends on array operations
+        true;
+      
+      // Allow reads for players in the room
+      allow read: if isPlayerInRoom(roomCode, playerDeviceId());
+      
+      // Allow deletion (veto clearing) by host
+      allow delete: if isHost(roomCode);
+    }
+    
+    // Default deny all other operations
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,5 +1,7 @@
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class MovieDetailsService {
@@ -66,7 +68,8 @@ class MovieDetailsService {
         );
       }
     } catch (e) {
-      print("Error fetching movie details: $e");
+       // Log error without exposing sensitive data
+       debugPrint("Error fetching movie details");
     }
 
     return null;
