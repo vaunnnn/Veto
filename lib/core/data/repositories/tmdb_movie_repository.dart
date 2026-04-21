@@ -88,7 +88,7 @@ class TmdbMovieRepository implements MovieRepository {
         throw Exception('Failed to load movies: ${response.statusCode}');
       }
     } catch (e) {
-       throw Exception('Failed to fetch movies');
+      throw Exception('Failed to fetch movies');
     }
   }
 

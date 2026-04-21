@@ -32,7 +32,7 @@ Future<void> main() async {
       debugPrint('Firebase is already initialized on the Android native side.');
     } else {
       // If it's a real error, we still want it to crash so we can fix it!
-      rethrow; 
+      rethrow;
     }
   }
 

@@ -1,4 +1,3 @@
-
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -68,8 +67,8 @@ class MovieDetailsService {
         );
       }
     } catch (e) {
-       // Log error without exposing sensitive data
-       debugPrint("Error fetching movie details");
+      // Log error without exposing sensitive data
+      debugPrint("Error fetching movie details");
     }
 
     return null;

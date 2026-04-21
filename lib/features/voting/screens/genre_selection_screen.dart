@@ -6,7 +6,6 @@ import 'package:veto/core/providers/providers.dart';
 import 'package:veto/core/domain/entities/room.dart';
 import 'package:veto/features/rooms/screens/landing_screen.dart';
 import 'swipe_deck_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GenreSelectionScreen extends ConsumerStatefulWidget {
   final String roomCode;

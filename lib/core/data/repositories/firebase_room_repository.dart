@@ -51,7 +51,7 @@ class FirebaseRoomRepository implements RoomRepository {
         debugPrint("Cleaned up ${expiredRooms.docs.length} dead rooms!");
       }
     } catch (e) {
-       debugPrint("Garbage collector skipped");
+      debugPrint("Garbage collector skipped");
     }
 
     // Create new room
@@ -78,7 +78,9 @@ class FirebaseRoomRepository implements RoomRepository {
   @override
   Future<bool> joinRoom(String roomCode, String playerDeviceId) async {
     _validateRoomCode(roomCode);
-    if (playerDeviceId.isEmpty) throw ArgumentError('playerDeviceId cannot be empty');
+    if (playerDeviceId.isEmpty) {
+      throw ArgumentError('playerDeviceId cannot be empty');
+      }
     final roomRef = _firestore.collection('rooms').doc(roomCode);
     final snapshot = await roomRef.get();
 
@@ -126,7 +128,9 @@ class FirebaseRoomRepository implements RoomRepository {
     Map<String, dynamic> profile,
   ) async {
     _validateRoomCode(roomCode);
-    if (playerDeviceId.isEmpty) throw ArgumentError('playerDeviceId cannot be empty');
+    if (playerDeviceId.isEmpty) {
+      throw ArgumentError('playerDeviceId cannot be empty');
+    }
     await _firestore.collection('rooms').doc(roomCode).update({
       'playerProfiles.$playerDeviceId': profile,
     });
@@ -146,7 +150,9 @@ class FirebaseRoomRepository implements RoomRepository {
   @override
   Future<void> leaveRoom(String roomCode, String playerDeviceId) async {
     _validateRoomCode(roomCode);
-    if (playerDeviceId.isEmpty) throw ArgumentError('playerDeviceId cannot be empty');
+    if (playerDeviceId.isEmpty) {
+      throw ArgumentError('playerDeviceId cannot be empty');
+    }
     final roomRef = _firestore.collection('rooms').doc(roomCode);
 
     await roomRef.update({

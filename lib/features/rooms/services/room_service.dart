@@ -42,7 +42,7 @@ class RoomService {
       }
     } catch (e) {
       // If it fails, who cares? We just want them to get into their new room!
-       debugPrint("Garbage collector skipped");
+      debugPrint("Garbage collector skipped");
     }
     // ----------------------------------------
 
