@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:veto/core/domain/entities/movie.dart';
 import 'package:veto/core/domain/entities/movie_details.dart';
 import 'package:veto/core/domain/repositories/movie_repository.dart';
+import 'package:flutter/foundation.dart';
 
 class TmdbMovieRepository implements MovieRepository {
   final String _apiKey;
@@ -87,7 +88,7 @@ class TmdbMovieRepository implements MovieRepository {
         throw Exception('Failed to load movies: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error fetching movies: $e');
+       throw Exception('Failed to fetch movies');
     }
   }
 
@@ -135,7 +136,8 @@ class TmdbMovieRepository implements MovieRepository {
         );
       }
     } catch (e) {
-      print("Error fetching movie details: $e");
+      // Log error without exposing sensitive data
+      debugPrint("Error fetching movie details");
     }
 
     return null;
@@ -143,7 +145,6 @@ class TmdbMovieRepository implements MovieRepository {
 
   @override
   Future<List<Movie>> searchMovies(String query) {
-    // TODO: Implement search functionality
     throw UnimplementedError();
   }
 }

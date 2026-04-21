@@ -31,90 +31,86 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
   // This is our background listener that watches for kicks and teleports
   bool _isHost = false;
   bool _navigatedAway = false;
+  bool _listenerSet = false;
 
   @override
   void initState() {
     super.initState();
     _isHost = widget.isHost;
-    _setupRoomListener();
   }
 
   // --- THE MAGIC TELEPORT & KICK LOGIC ---
-  void _setupRoomListener() {
-    ref.listen<AsyncValue<Room?>>(
-      roomStreamProvider(widget.roomCode),
-      (previous, next) {
-        next.when(
-          data: (room) {
-            if (room == null) {
-              // Room deleted, navigate to landing screen (only show snackbar for guests)
-              if (!_navigatedAway && mounted && !_isHost) {
-                _navigatedAway = true;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('The host has closed the session.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LandingScreen()),
-                  (route) => false,
-                );
-              }
-              return;
-            }
-            
-            // Update host status based on stored hostId
-            final bool isHost = room.hostId == widget.playerDeviceId;
-            if (_isHost != isHost && mounted) {
-              setState(() {
-                _isHost = isHost;
-              });
-            }
-            
-            // Check if this specific user was kicked!
-            if (!_isHost && !room.connectedPlayers.contains(widget.playerDeviceId)) {
-              if (!_navigatedAway && mounted) {
-                _navigatedAway = true;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('You have been removed from the session.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LandingScreen()),
-                  (route) => false,
-                );
-              }
-              return;
-            }
+  void _handleRoomUpdate(AsyncValue<Room?>? previous, AsyncValue<Room?> next) {
+    next.when(
+      data: (room) {
+        if (room == null) {
+          // Room deleted, navigate to landing screen (only show snackbar for guests)
+          if (!_navigatedAway && mounted && !_isHost) {
+            _navigatedAway = true;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('The host has closed the session.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LandingScreen()),
+              (route) => false,
+            );
+          }
+          return;
+        }
 
-            // Teleport everyone if the host starts the session
-            if (room.status == RoomStatus.voting) {
-              if (!_navigatedAway && mounted) {
-                _navigatedAway = true;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GenreSelectionScreen(
-                      roomCode: widget.roomCode,
-                      playerDeviceId: widget.playerDeviceId,
-                    ),
-                  ),
-                );
-              }
-            }
-          },
-          error: (error, stackTrace) {
-            // Handle error if needed
-          },
-          loading: () {
-            // Loading state if needed
-          },
-        );
+        // Update host status based on stored hostId
+        final bool isHost = room.hostId == widget.playerDeviceId;
+        if (_isHost != isHost && mounted) {
+          setState(() {
+            _isHost = isHost;
+          });
+        }
+
+        // Check if this specific user was kicked!
+        if (!_isHost &&
+            !room.connectedPlayers.contains(widget.playerDeviceId)) {
+          if (!_navigatedAway && mounted) {
+            _navigatedAway = true;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('You have been removed from the session.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LandingScreen()),
+              (route) => false,
+            );
+          }
+          return;
+        }
+
+        // Teleport everyone if the host starts the session
+        if (room.status == RoomStatus.voting) {
+          if (!_navigatedAway && mounted) {
+            _navigatedAway = true;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GenreSelectionScreen(
+                  roomCode: widget.roomCode,
+                  playerDeviceId: widget.playerDeviceId,
+                ),
+              ),
+            );
+          }
+        }
+      },
+      error: (error, stackTrace) {
+        // Handle error if needed
+      },
+      loading: () {
+        // Loading state if needed
       },
     );
   }
@@ -130,7 +126,10 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
     if (_isHost) {
       await roomManagementService.deleteRoom(widget.roomCode);
     } else {
-      await roomManagementService.leaveRoom(widget.roomCode, widget.playerDeviceId);
+      await roomManagementService.leaveRoom(
+        widget.roomCode,
+        widget.playerDeviceId,
+      );
     }
 
     if (mounted) {
@@ -318,7 +317,9 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                   onPressed: () async {
                     final String finalName = nameController.text.trim();
 
-                    final roomManagementService = ref.read(roomManagementServiceProvider);
+                    final roomManagementService = ref.read(
+                      roomManagementServiceProvider,
+                    );
                     await roomManagementService.updatePlayerProfile(
                       widget.roomCode,
                       widget.playerDeviceId,
@@ -405,7 +406,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
         ),
       );
     } catch (e, stackTrace) {
-      log('QR code generation failed: $e', error: e, stackTrace: stackTrace);
+      log('QR code generation failed', error: e, stackTrace: stackTrace);
       _showQRCodeFallback(roomCode);
     }
   }
@@ -1104,22 +1105,22 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                         ),
                         elevation: 0,
                       ),
-                       onPressed: () async {
-                         final roomManagementService = ref.read(roomManagementServiceProvider);
-                         await roomManagementService.updateFilterSettings(
-                           widget.roomCode,
-                           {
-                             'minYear': minYear.toInt(),
-                             'maxYear': maxYear.toInt(),
-                             'minScore': minScore,
-                             'maxRuntime': maxRuntime,
-                             'familyFriendly': familyFriendly,
-                             'languages': selectedLanguages,
-                           },
-                         );
+                      onPressed: () async {
+                        final roomManagementService = ref.read(
+                          roomManagementServiceProvider,
+                        );
+                        await roomManagementService
+                            .updateFilterSettings(widget.roomCode, {
+                              'minYear': minYear.toInt(),
+                              'maxYear': maxYear.toInt(),
+                              'minScore': minScore,
+                              'maxRuntime': maxRuntime,
+                              'familyFriendly': familyFriendly,
+                              'languages': selectedLanguages,
+                            });
 
-                         if (context.mounted) Navigator.pop(context);
-                       },
+                        if (context.mounted) Navigator.pop(context);
+                      },
                       child: const Text(
                         "APPLY TO ROOM",
                         style: TextStyle(
@@ -1149,6 +1150,14 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
     final Color bgColor = theme.brightness == Brightness.light
         ? const Color(0xFFF8F9FA)
         : colorScheme.surface;
+
+    if (!_listenerSet) {
+      ref.listen<AsyncValue<Room?>>(
+        roomStreamProvider(widget.roomCode),
+        _handleRoomUpdate,
+      );
+      _listenerSet = true;
+    }
 
     // ignore: deprecated_member_use
     return WillPopScope(
@@ -1195,9 +1204,12 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
             // Convert room to data map for compatibility with existing UI
             final Map<String, dynamic> data = {
               'connectedPlayers': room.connectedPlayers,
-              'playerProfiles': room.playerProfiles.map((key, value) => MapEntry(key, value.toMap())),
+              'playerProfiles': room.playerProfiles.map(
+                (key, value) => MapEntry(key, value.toMap()),
+              ),
             };
-            final List<dynamic> connectedPlayers = data['connectedPlayers'] ?? [];
+            final List<dynamic> connectedPlayers =
+                data['connectedPlayers'] ?? [];
             final int playerCount = connectedPlayers.length;
 
             return SafeArea(
@@ -1391,8 +1403,13 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                                   currentProfile['avatar']!,
                                 ),
                                 onKick: () async {
-                                  final roomManagementService = ref.read(roomManagementServiceProvider);
-                                  await roomManagementService.kickPlayer(widget.roomCode, targetDeviceId);
+                                  final roomManagementService = ref.read(
+                                    roomManagementServiceProvider,
+                                  );
+                                  await roomManagementService.kickPlayer(
+                                    widget.roomCode,
+                                    targetDeviceId,
+                                  );
                                 },
                               );
                             },
@@ -1430,8 +1447,14 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                             ),
                             onPressed: _isHost
                                 ? () async {
-                                    final roomManagementService = ref.read(roomManagementServiceProvider);
-                                    await roomManagementService.updateRoomStatus(widget.roomCode, 'voting');
+                                    final roomManagementService = ref.read(
+                                      roomManagementServiceProvider,
+                                    );
+                                    await roomManagementService
+                                        .updateRoomStatus(
+                                          widget.roomCode,
+                                          'voting',
+                                        );
                                   }
                                 : null,
                             child: Text(

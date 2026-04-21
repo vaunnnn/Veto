@@ -10,9 +10,19 @@ class FirebaseRoomRepository implements RoomRepository {
   FirebaseRoomRepository({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  void _validateRoomCode(String roomCode) {
+    if (!roomCode.startsWith('VETO-') || roomCode.length != 9) {
+      throw ArgumentError('Invalid room code format');
+    }
+    final suffix = roomCode.substring(5);
+    if (!suffix.contains(RegExp(r'^[A-Z0-9]{4}$'))) {
+      throw ArgumentError('Room code suffix must be 4 alphanumeric characters');
+    }
+  }
+
   String _generateRoomCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = Random();
+    final random = Random.secure();
     final code = String.fromCharCodes(
       Iterable.generate(
         4,
@@ -41,7 +51,7 @@ class FirebaseRoomRepository implements RoomRepository {
         debugPrint("Cleaned up ${expiredRooms.docs.length} dead rooms!");
       }
     } catch (e) {
-      debugPrint("Garbage collector skipped: $e");
+       debugPrint("Garbage collector skipped");
     }
 
     // Create new room
@@ -67,6 +77,8 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   Future<bool> joinRoom(String roomCode, String playerDeviceId) async {
+    _validateRoomCode(roomCode);
+    if (playerDeviceId.isEmpty) throw ArgumentError('playerDeviceId cannot be empty');
     final roomRef = _firestore.collection('rooms').doc(roomCode);
     final snapshot = await roomRef.get();
 
@@ -88,6 +100,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   Stream<Room?> watchRoom(String roomCode) {
+    _validateRoomCode(roomCode);
     return _firestore.collection('rooms').doc(roomCode).snapshots().map((
       snapshot,
     ) {
@@ -100,6 +113,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   Future<void> updateRoomStatus(String roomCode, String status) async {
+    _validateRoomCode(roomCode);
     await _firestore.collection('rooms').doc(roomCode).update({
       'status': status,
     });
@@ -111,6 +125,8 @@ class FirebaseRoomRepository implements RoomRepository {
     String playerDeviceId,
     Map<String, dynamic> profile,
   ) async {
+    _validateRoomCode(roomCode);
+    if (playerDeviceId.isEmpty) throw ArgumentError('playerDeviceId cannot be empty');
     await _firestore.collection('rooms').doc(roomCode).update({
       'playerProfiles.$playerDeviceId': profile,
     });
@@ -121,6 +137,7 @@ class FirebaseRoomRepository implements RoomRepository {
     String roomCode,
     Map<String, dynamic> settings,
   ) async {
+    _validateRoomCode(roomCode);
     await _firestore.collection('rooms').doc(roomCode).update({
       'filterSettings': settings,
     });
@@ -128,6 +145,8 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   Future<void> leaveRoom(String roomCode, String playerDeviceId) async {
+    _validateRoomCode(roomCode);
+    if (playerDeviceId.isEmpty) throw ArgumentError('playerDeviceId cannot be empty');
     final roomRef = _firestore.collection('rooms').doc(roomCode);
 
     await roomRef.update({
@@ -148,11 +167,13 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   Future<void> deleteRoom(String roomCode) async {
+    _validateRoomCode(roomCode);
     await _firestore.collection('rooms').doc(roomCode).delete();
   }
 
   @override
   Future<void> clearMatch(String roomCode) async {
+    _validateRoomCode(roomCode);
     await _firestore.collection('rooms').doc(roomCode).update({
       'latestMatch': FieldValue.delete(),
     });

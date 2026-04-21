@@ -83,6 +83,7 @@ flutter:
   
   # 'assets:' MUST have exactly 2 spaces in front of it
   assets:
+    - .env
     # '- .env' MUST have exactly 4 spaces in front of it
     # - .env  # REMOVED: API keys should not be bundled in app assets
     - assets/images/

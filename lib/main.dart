@@ -20,10 +20,20 @@ Future<void> main() async {
   }
 
   // 3. MUST happen before runApp
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    // If Android native already has it initialized, safely ignore the duplicate app error
+    if (e is FirebaseException && e.code == 'duplicate-app') {
+      debugPrint('Firebase is already initialized on the Android native side.');
+    } else {
+      // If it's a real error, we still want it to crash so we can fix it!
+      rethrow; 
+    }
   }
 
   runApp(const ProviderScope(child: VetoApp()));

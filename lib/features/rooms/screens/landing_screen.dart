@@ -182,7 +182,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                                         }
                                       } catch (e) {
                                         // If the database fails (e.g., no internet), turn the button back on
-                                        debugPrint("Error creating room: $e");
+                                         debugPrint("Error creating room");
                                         if (mounted) {
                                           setState(
                                             () => _isCreatingRoom = false,

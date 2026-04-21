@@ -205,7 +205,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         });
       }
     } catch (e) {
-      debugPrint("Error fetching room data: $e");
+       debugPrint("Error fetching room data");
     }
 
     if (combinedGenres.isEmpty) {
@@ -300,7 +300,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
         }
       }
     } catch (e) {
-      debugPrint("Error fetching TMDB movies: $e");
+       debugPrint("Error fetching TMDB movies");
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -510,7 +510,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                                           DateTime.now().millisecondsSinceEpoch,
                                     });
                               } catch (e) {
-                                debugPrint("Error keeping swiping: $e");
+                                 debugPrint("Error keeping swiping");
                               }
                             },
                             icon: const Icon(

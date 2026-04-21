@@ -33,7 +33,7 @@ class QrCodeWidget extends StatelessWidget {
         child: CustomPaint(size: Size(size, size), painter: qrPainter),
       );
     } catch (e) {
-      log('QR painting failed: $e');
+       log('QR painting failed');
       return Container(
         width: size,
         height: size,

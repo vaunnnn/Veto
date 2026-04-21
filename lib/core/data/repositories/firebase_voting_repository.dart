@@ -8,6 +8,20 @@ class FirebaseVotingRepository implements VotingRepository {
   FirebaseVotingRepository({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  void _validateRoomCode(String roomCode) {
+    if (!roomCode.startsWith('VETO-') || roomCode.length != 9) {
+      throw ArgumentError('Invalid room code format');
+    }
+    final suffix = roomCode.substring(5);
+    if (!suffix.contains(RegExp(r'^[A-Z0-9]{4}$'))) {
+      throw ArgumentError('Room code suffix must be 4 alphanumeric characters');
+    }
+  }
+
+  void _validateDeviceId(String deviceId) {
+    if (deviceId.isEmpty) throw ArgumentError('deviceId cannot be empty');
+  }
+
   @override
   Future<void> castVote(
     String roomCode,
@@ -15,6 +29,8 @@ class FirebaseVotingRepository implements VotingRepository {
     String playerDeviceId,
     bool isLike,
   ) async {
+    _validateRoomCode(roomCode);
+    _validateDeviceId(playerDeviceId);
     final roomRef = _firestore.collection('rooms').doc(roomCode);
     final movieVoteRef = roomRef.collection('votes').doc(movieId);
 
@@ -72,6 +88,7 @@ class FirebaseVotingRepository implements VotingRepository {
 
   @override
   Stream<Vote?> watchVote(String roomCode, String movieId) {
+    _validateRoomCode(roomCode);
     return _firestore
         .collection('rooms')
         .doc(roomCode)
@@ -88,6 +105,7 @@ class FirebaseVotingRepository implements VotingRepository {
 
   @override
   Future<void> clearVeto(String roomCode, String movieId) async {
+    _validateRoomCode(roomCode);
     final movieVoteRef = _firestore
         .collection('rooms')
         .doc(roomCode)
@@ -99,6 +117,7 @@ class FirebaseVotingRepository implements VotingRepository {
 
   @override
   Future<Map<String, Vote>> getVotesForRoom(String roomCode) async {
+    _validateRoomCode(roomCode);
     final snapshot = await _firestore
         .collection('rooms')
         .doc(roomCode)

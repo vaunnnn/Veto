@@ -18,58 +18,54 @@ class GenreSelectionScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<GenreSelectionScreen> createState() => _GenreSelectionScreenState();
+  ConsumerState<GenreSelectionScreen> createState() =>
+      _GenreSelectionScreenState();
 }
 
 class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
   bool _isHost = false;
   bool _navigatedAway = false;
+  bool _listenerSet = false;
   Room? _currentRoom;
 
   @override
   void initState() {
     super.initState();
-    _setupRoomListener();
   }
 
-  void _setupRoomListener() {
-    ref.listen<AsyncValue<Room?>>(
-      roomStreamProvider(widget.roomCode),
-      (previous, next) {
-        next.when(
-          data: (room) {
-            if (room == null) {
-              // Room deleted, navigate to landing screen
-              if (!_navigatedAway && mounted) {
-                _navigatedAway = true;
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LandingScreen()),
-                  (route) => false,
-                );
-              }
-              return;
-            }
-            
-            final bool isHost = room.hostId == widget.playerDeviceId;
-            if (_isHost != isHost && mounted) {
-              setState(() {
-                _isHost = isHost;
-                _currentRoom = room;
-              });
-            } else if (mounted) {
-              setState(() {
-                _currentRoom = room;
-              });
-            }
-          },
-          error: (error, stackTrace) {
-            // Handle error if needed
-          },
-          loading: () {
-            // Loading state if needed
-          },
-        );
+  void _handleRoomUpdate(AsyncValue<Room?>? previous, AsyncValue<Room?> next) {
+    next.when(
+      data: (room) {
+        if (room == null) {
+          // Room deleted, navigate to landing screen
+          if (!_navigatedAway && mounted) {
+            _navigatedAway = true;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LandingScreen()),
+              (route) => false,
+            );
+          }
+          return;
+        }
+
+        final bool isHost = room.hostId == widget.playerDeviceId;
+        if (_isHost != isHost && mounted) {
+          setState(() {
+            _isHost = isHost;
+            _currentRoom = room;
+          });
+        } else if (mounted) {
+          setState(() {
+            _currentRoom = room;
+          });
+        }
+      },
+      error: (error, stackTrace) {
+        // Handle error if needed
+      },
+      loading: () {
+        // Loading state if needed
       },
     );
   }
@@ -85,7 +81,10 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
     if (_isHost) {
       await roomManagementService.deleteRoom(widget.roomCode);
     } else {
-      await roomManagementService.leaveRoom(widget.roomCode, widget.playerDeviceId);
+      await roomManagementService.leaveRoom(
+        widget.roomCode,
+        widget.playerDeviceId,
+      );
     }
 
     if (mounted) {
@@ -166,38 +165,38 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
           ),
           // Adapts background color based on Light/Dark mode
           backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
-            child: StreamBuilder<Room?>(
-              // ignore: deprecated_member_use
-              stream: _roomStream(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data == null) {
+          child: StreamBuilder<Room?>(
+            // ignore: deprecated_member_use
+            stream: _roomStream(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data == null) {
                 return const SizedBox(
                   height: 150,
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
 
-               final room = snapshot.data!;
-               final connectedPlayers = room.connectedPlayers;
-               final profiles = room.playerProfiles;
+              final room = snapshot.data!;
+              final connectedPlayers = room.connectedPlayers;
+              final profiles = room.playerProfiles;
 
               int readyCount = 0;
               List<Widget> playerStatusWidgets = [];
 
-               for (String deviceId in connectedPlayers) {
-                 final profile = profiles[deviceId];
-                 final String name = profile?.name ?? 'Guest';
-                 final String avatar =
-                     profile?.avatar ?? 'assets/images/default-pic-1.webp';
-                 final bool isReady = profile?.genres?.isNotEmpty ?? false;
+              for (String deviceId in connectedPlayers) {
+                final profile = profiles[deviceId];
+                final String name = profile?.name ?? 'Guest';
+                final String avatar =
+                    profile?.avatar ?? 'assets/images/default-pic-1.webp';
+                final bool isReady = profile?.genres?.isNotEmpty ?? false;
 
-                 if (isReady) readyCount++;
+                if (isReady) readyCount++;
 
-                 String subtitleText = 'Selecting...';
-                 if (isReady) {
-                   final List<String> userGenres = profile!.genres!;
-                   subtitleText = userGenres.join(', ');
-                 }
+                String subtitleText = 'Selecting...';
+                if (isReady) {
+                  final List<String> userGenres = profile!.genres!;
+                  subtitleText = userGenres.join(', ');
+                }
 
                 playerStatusWidgets.add(
                   Container(
@@ -221,7 +220,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                           backgroundColor: Colors.grey.shade800,
                           onBackgroundImageError: (exception, stackTrace) {
                             // Log the error for debugging
-                            debugPrint('Failed to load image: $exception');
+                            debugPrint('Failed to load image');
                           },
                           // THE FIX: Switch between NetworkImage and AssetImage automatically
                           backgroundImage: avatar.startsWith('http')
@@ -289,7 +288,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
 
               // --- TELEPORTATION LOGIC ---
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                 if (_currentRoom?.status == RoomStatus.swiping) {
+                if (_currentRoom?.status == RoomStatus.swiping) {
                   Navigator.pop(context);
                   Navigator.pushReplacement(
                     context,
@@ -303,7 +302,8 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                   );
                 } else if (readyCount == connectedPlayers.length &&
                     connectedPlayers.isNotEmpty) {
-                  ref.read(roomManagementServiceProvider)
+                  ref
+                      .read(roomManagementServiceProvider)
                       .updateRoomStatus(widget.roomCode, 'swiping');
                 }
               });
@@ -358,11 +358,16 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                         onPressed: () async {
-                           await ref.read(roomManagementServiceProvider)
-                               .updatePlayerGenres(widget.roomCode, widget.playerDeviceId, []);
-                           if (context.mounted) Navigator.pop(context);
-                         },
+                        onPressed: () async {
+                          await ref
+                              .read(roomManagementServiceProvider)
+                              .updatePlayerGenres(
+                                widget.roomCode,
+                                widget.playerDeviceId,
+                                [],
+                              );
+                          if (context.mounted) Navigator.pop(context);
+                        },
                         child: Text(
                           'Cancel Selection',
                           style: TextStyle(
@@ -390,6 +395,14 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLightMode = theme.brightness == Brightness.light;
+
+    if (!_listenerSet) {
+      ref.listen<AsyncValue<Room?>>(
+        roomStreamProvider(widget.roomCode),
+        _handleRoomUpdate,
+      );
+      _listenerSet = true;
+    }
 
     return PopScope(
       canPop: false,
@@ -514,18 +527,28 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                       onPressed: selectedGenres.isEmpty
                           ? null
                           : () async {
-                               // 1. Fetch the room data to see how many people are playing
-                               final connectedPlayers = _currentRoom?.connectedPlayers ?? [];
+                              // 1. Fetch the room data to see how many people are playing
+                              final connectedPlayers =
+                                  _currentRoom?.connectedPlayers ?? [];
 
                               // 2. Save their selected genres to the database
-                               await ref.read(roomManagementServiceProvider)
-                                   .updatePlayerGenres(widget.roomCode, widget.playerDeviceId, selectedGenres.toList());
+                              await ref
+                                  .read(roomManagementServiceProvider)
+                                  .updatePlayerGenres(
+                                    widget.roomCode,
+                                    widget.playerDeviceId,
+                                    selectedGenres.toList(),
+                                  );
 
                               // 3. THE FIX: Are they playing solo? Skip the dialog entirely!
                               if (connectedPlayers.length <= 1) {
                                 // Tell the database we are moving to the swiping phase
-                                 await ref.read(roomManagementServiceProvider)
-                                     .updateRoomStatus(widget.roomCode, 'swiping');
+                                await ref
+                                    .read(roomManagementServiceProvider)
+                                    .updateRoomStatus(
+                                      widget.roomCode,
+                                      'swiping',
+                                    );
 
                                 // Instantly teleport the solo player
                                 if (context.mounted) {
