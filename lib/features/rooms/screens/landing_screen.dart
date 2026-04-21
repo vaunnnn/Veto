@@ -4,6 +4,7 @@ import 'package:veto/core/themes/app_colors.dart';
 import 'package:veto/core/providers/providers.dart';
 import 'join_room_screen.dart';
 import 'waiting_room_screen.dart';
+import '../services/room_service.dart';
 
 class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
