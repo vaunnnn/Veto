@@ -40,6 +40,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   int currentPage = 1;
   bool _isMatchOverlayOpen = false;
   int _lastKeepSwipingTrigger = 0;
+  bool _hasFetchedMovies = false;
 
   final Map<String, String> tmdbGenreIds = {
     'Action': '28',
@@ -66,7 +67,6 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchMovies();
     _listenForMatches();
     _listenToRoom();
   }
@@ -176,10 +176,28 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
               _isHost = isHost;
             });
           }
+
+          // Check if we have player profiles with genres to fetch movies
+          if (!_hasFetchedMovies && mounted) {
+            final Map<String, dynamic> profiles = data['playerProfiles'] ?? {};
+            Set<String> combinedGenres = {};
+            profiles.forEach((deviceId, profile) {
+              final List dynamicGenres = profile['genres'] ?? [];
+              combinedGenres.addAll(dynamicGenres.map((g) => g.toString()));
+            });
+
+            if (combinedGenres.isNotEmpty) {
+              _hasFetchedMovies = true;
+              _fetchMovies();
+            }
+          }
         });
   }
 
   Future<void> _fetchMovies() async {
+    if (currentPage == 1 && _hasFetchedMovies) {
+      return;
+    }
     final String apiKey = dotenv.env['TMDB_API_KEY'] ?? '';
 
     Set<String> combinedGenres = {};
@@ -209,7 +227,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     }
 
     if (combinedGenres.isEmpty) {
-      combinedGenres.addAll(widget.selectedGenres);
+      // Wait for player profiles to sync
+      return;
     }
 
     String mappedIds = combinedGenres
@@ -294,8 +313,9 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
             // Deterministic shuffle based on room code and page number
             final random = Random(widget.roomCode.hashCode + currentPage);
             newMovies.shuffle(random);
-            movies.addAll(newMovies);
-            isLoading = false;
+             movies.addAll(newMovies);
+             if (currentPage == 1) _hasFetchedMovies = true;
+             isLoading = false;
           });
         }
       }

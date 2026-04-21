@@ -528,8 +528,8 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                           ? null
                           : () async {
                               // 1. Fetch the room data to see how many people are playing
-                              final connectedPlayers =
-                                  _currentRoom?.connectedPlayers ?? [];
+                              final room = ref.read(roomStreamProvider(widget.roomCode)).value ?? _currentRoom;
+                              final connectedPlayers = room?.connectedPlayers ?? [];
 
                               // 2. Save their selected genres to the database
                               await ref
