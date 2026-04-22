@@ -1160,26 +1160,6 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
       onWillPop: _onWillPop,
       child: Scaffold(
         backgroundColor: bgColor,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          // NEW: The Host Settings Icon
-          actions: [
-            if (_isHost)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: IconButton(
-                  icon: const Icon(Icons.tune_rounded),
-                  color: colorScheme.primary,
-                  splashColor: colorScheme.primary.withValues(alpha: 0.1),
-                  onPressed: () {
-                    _showHostSettingsModal();
-                  },
-                ),
-              ),
-          ],
-        ),
         // We still use StreamBuilder to draw the UI live
         body: StreamBuilder<Room?>(
           // ignore: deprecated_member_use
@@ -1213,8 +1193,27 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 16),
-                          Center(
-                            child: Image.asset('assets/images/veto-logo.webp', height: 32),
+                          SizedBox(
+                            height: 48,
+                            width: double.infinity,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.asset('assets/images/veto-logo.webp', height: 32),
+                                if (_isHost)
+                                  Positioned(
+                                    right: -8, // Offset slightly to account for the IconButton's built-in padding
+                                    child: IconButton(
+                                      icon: const Icon(Icons.tune_rounded),
+                                      color: colorScheme.primary,
+                                      splashColor: colorScheme.primary.withValues(alpha: 0.1),
+                                      onPressed: () {
+                                        _showHostSettingsModal();
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 24),
 
