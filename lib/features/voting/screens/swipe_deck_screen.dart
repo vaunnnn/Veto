@@ -143,7 +143,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
             final match = data['latestMatch'];
             final String matchId = match['id'].toString();
 
-            if (_lastMatchedMovieId != matchId) {
+            if (_lastMatchedMovieId != matchId && !_isMatchOverlayOpen) {
               _lastMatchedMovieId = matchId;
               _isMatchOverlayOpen = true; // Mark the overlay as open!
               _showMatchOverlay(match);
@@ -374,6 +374,8 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
     int? currentIndex,
     CardSwiperDirection direction,
   ) {
+    if (_isMatchOverlayOpen) return false;
+
     bool isLike = direction == CardSwiperDirection.right;
     _castVote(movies[previousIndex], isLike);
 
