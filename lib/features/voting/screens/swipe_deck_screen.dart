@@ -582,13 +582,24 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
           .doc(widget.roomCode)
           .delete();
     } else {
-      await FirebaseFirestore.instance
+      final roomRef = FirebaseFirestore.instance
           .collection('rooms')
-          .doc(widget.roomCode)
-          .update({
-            'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
-            'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(),
-          });
+          .doc(widget.roomCode);
+
+      await roomRef.update({
+        'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
+        'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(),
+      });
+
+      // Check if room is now empty and delete the document if so
+      final snapshot = await roomRef.get();
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>;
+        final connectedPlayers = List.from(data['connectedPlayers'] ?? []);
+        if (connectedPlayers.isEmpty) {
+          await roomRef.delete();
+        }
+      }
     }
 
     if (mounted) {
