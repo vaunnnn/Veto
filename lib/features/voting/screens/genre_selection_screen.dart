@@ -576,7 +576,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                       'swiping',
                                     );
 
-                                if (context.mounted) {
+                                if (context.mounted && !_navigatedAway) {
                                   _navigatedAway =
                                       true; // Block listener duplication
                                   Navigator.pushReplacement(
@@ -591,7 +591,9 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                   );
                                 }
                               } else {
-                                _showWaitingDialog();
+                                if (context.mounted && !_navigatedAway) {
+                                  _showWaitingDialog();
+                                }
                               }
                             },
                       child: const Row(
