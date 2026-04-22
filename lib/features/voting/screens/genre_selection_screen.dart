@@ -363,8 +363,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                     ),
                     const SizedBox(height: 24),
                     ...playerStatusWidgets,
-                    const SizedBox(height: 16),
-                    // TEMPORARY DEBUG UI
+                    const SizedBox(height: 16),// TEMPORARY DEBUG UI
                     Container(
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(12),
