@@ -332,9 +332,8 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                   ),
                 );
               }
-
+              
               int waitingFor = connectedPlayers.length - readyCount;
-
               return Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
