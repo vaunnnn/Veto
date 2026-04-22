@@ -16,7 +16,7 @@ class PlayerProfile {
   factory PlayerProfile.fromMap(Map<String, dynamic> map) {
     return PlayerProfile(
       deviceId: map['deviceId'] as String,
-      name: map['name'] as String,
+      name: map['name'] as String? ?? 'Guest',
       avatar: map['avatar'] as String?,
       isHost: map['isHost'] as bool? ?? false,
       genres: map['genres'] != null ? List<String>.from(map['genres']) : null,

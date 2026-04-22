@@ -332,7 +332,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                   ),
                 );
               }
-              
+
               int waitingFor = connectedPlayers.length - readyCount;
               return Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -363,51 +363,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                     ),
                     const SizedBox(height: 24),
                     ...playerStatusWidgets,
-                    const SizedBox(height: 16),// TEMPORARY DEBUG UI
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
-                        border: Border.all(color: Colors.red),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text(
-                            'DEBUG SERVER DATA:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: Colors.red,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ...connectedPlayers.map((id) {
-                            final g = profiles[id]?.genres;
-                            return Text(
-                              '$id genres: ${g == null ? "null" : g.toString()}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.red,
-                              ),
-                            );
-                          }),
-                          if (roomAsync.hasError) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'STREAM ERROR: ${roomAsync.error}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.blueAccent,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       height: 55,
