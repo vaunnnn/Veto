@@ -354,7 +354,12 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          contentPadding: const EdgeInsets.only(left: 32, right: 32, top: 16, bottom: 24),
+          contentPadding: const EdgeInsets.only(
+            left: 32,
+            right: 32,
+            top: 16,
+            bottom: 24,
+          ),
           title: const Text(
             'Room QR Code',
             textAlign: TextAlign.center,
@@ -479,9 +484,15 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: roomCode));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Room code copied to clipboard!'),
-                          backgroundColor: Colors.green,
+                        SnackBar(
+                          content: const Text(
+                            'Room code copied to clipboard!',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                         ),
                       );
                     },
@@ -1220,14 +1231,19 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                Image.asset('assets/images/veto-logo.webp', height: 32),
+                                Image.asset(
+                                  'assets/images/veto-logo.webp',
+                                  height: 32,
+                                ),
                                 if (_isHost)
                                   Positioned(
-                                    right: -8, // Offset slightly to account for the IconButton's built-in padding
+                                    right:
+                                        -8, // Offset slightly to account for the IconButton's built-in padding
                                     child: IconButton(
                                       icon: const Icon(Icons.tune_rounded),
                                       color: colorScheme.primary,
-                                      splashColor: colorScheme.primary.withValues(alpha: 0.1),
+                                      splashColor: colorScheme.primary
+                                          .withValues(alpha: 0.1),
                                       onPressed: () {
                                         _showHostSettingsModal();
                                       },
@@ -1328,12 +1344,16 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                                                   ScaffoldMessenger.of(
                                                     context,
                                                   ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
+                                                    SnackBar(
+                                                      content: const Text(
                                                         'Room code copied to clipboard!',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
                                                       ),
                                                       backgroundColor:
-                                                          Colors.green,
+                                                          Theme.of(context).colorScheme.primary,
                                                     ),
                                                   );
                                                 },

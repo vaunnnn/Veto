@@ -187,10 +187,16 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
           selectedGenres.add(genre);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You can only select up to 3 genres!'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: const Text(
+                'You can only select up to 3 genres!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
