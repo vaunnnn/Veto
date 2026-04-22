@@ -396,6 +396,17 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                               ),
                             );
                           }),
+                          if (roomAsync.hasError) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'STREAM ERROR: ${roomAsync.error}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.blueAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
