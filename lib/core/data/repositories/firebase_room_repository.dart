@@ -80,7 +80,7 @@ class FirebaseRoomRepository implements RoomRepository {
     _validateRoomCode(roomCode);
     if (playerDeviceId.isEmpty) {
       throw ArgumentError('playerDeviceId cannot be empty');
-      }
+    }
     final roomRef = _firestore.collection('rooms').doc(roomCode);
     final snapshot = await roomRef.get();
 
@@ -131,9 +131,11 @@ class FirebaseRoomRepository implements RoomRepository {
     if (playerDeviceId.isEmpty) {
       throw ArgumentError('playerDeviceId cannot be empty');
     }
-    await _firestore.collection('rooms').doc(roomCode).update({
-      'playerProfiles.$playerDeviceId': profile,
-    });
+    final Map<String, dynamic> updates = {};
+    for (final entry in profile.entries) {
+      updates['playerProfiles.$playerDeviceId.${entry.key}'] = entry.value;
+    }
+    await _firestore.collection('rooms').doc(roomCode).update(updates);
   }
 
   @override
@@ -185,3 +187,4 @@ class FirebaseRoomRepository implements RoomRepository {
     });
   }
 }
+

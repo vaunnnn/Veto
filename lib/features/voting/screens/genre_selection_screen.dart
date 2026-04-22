@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:veto/core/themes/app_colors.dart'; // Adjust if your package name is different
+import 'package:veto/core/themes/app_colors.dart'; 
 import 'package:veto/core/providers/providers.dart';
 import 'package:veto/core/domain/entities/room.dart';
 import 'package:veto/features/rooms/screens/landing_screen.dart';
@@ -25,7 +25,7 @@ class GenreSelectionScreen extends ConsumerStatefulWidget {
 class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
   bool _isHost = false;
   bool _navigatedAway = false;
-  bool _listenerSet = false;
+  bool _isWaitingDialogShowing = false; // Track if dialog is open
   Room? _currentRoom;
 
   @override
@@ -40,6 +40,9 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
           // Room deleted, navigate to landing screen
           if (!_navigatedAway && mounted) {
             _navigatedAway = true;
+            if (_isWaitingDialogShowing) {
+              Navigator.of(context, rootNavigator: true).pop(); // Safely clear dialog
+            }
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const LandingScreen()),
@@ -60,13 +63,51 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
             _currentRoom = room;
           });
         }
+
+        // Prevent execution if we have already transitioned
+        if (_navigatedAway) return;
+
+        // 1. UPDATE STATUS LOGIC: Only the host should push the "swiping" status to prevent race conditions.
+        if (isHost && room.status != RoomStatus.swiping && room.connectedPlayers.isNotEmpty) {
+          bool allReady = true;
+          for (String id in room.connectedPlayers) {
+            final profile = room.playerProfiles[id];
+            if (profile == null || (profile.genres ?? []).isEmpty) {
+              allReady = false;
+              break;
+            }
+          }
+
+          if (allReady) {
+            ref.read(roomManagementServiceProvider).updateRoomStatus(widget.roomCode, 'swiping');
+          }
+        }
+
+        // 2. TELEPORTATION LOGIC: If the room is now 'swiping', teleport everyone cleanly.
+        if (room.status == RoomStatus.swiping && mounted) {
+          _navigatedAway = true;
+          
+          if (_isWaitingDialogShowing) {
+            Navigator.of(context, rootNavigator: true).pop(); // Pop the dialog using the root navigator
+          }
+          
+          // Push the new screen using the main State context
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SwipeDeckScreen(
+                selectedGenres: selectedGenres,
+                roomCode: widget.roomCode,
+                playerDeviceId: widget.playerDeviceId,
+              ),
+            ),
+          );
+        }
       },
       error: (error, stackTrace) {
-        // Handle error if needed
+        debugPrint('Room Stream Error: $error');
       },
-      loading: () {
-        // Loading state if needed
-      },
+      loading: () {},
     );
   }
 
@@ -97,11 +138,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
     }
   }
 
-  Stream<Room?> _roomStream() {
-    // ignore: deprecated_member_use
-    return ref.watch(roomStreamProvider(widget.roomCode).stream);
-  }
-
   final List<Map<String, String>> genres = [
     {'name': 'Action', 'image': 'assets/images/action.webp'},
     {'name': 'Adventure', 'image': 'assets/images/adventure.webp'},
@@ -128,14 +164,11 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
   void _toggleGenre(String genre) {
     setState(() {
       if (selectedGenres.contains(genre)) {
-        // Always allow them to deselect a genre
         selectedGenres.remove(genre);
       } else {
-        // If they haven't hit the limit yet, add it!
         if (selectedGenres.length < 3) {
           selectedGenres.add(genre);
         } else {
-          // If they are already at 3, show a friendly warning
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('You can only select up to 3 genres!'),
@@ -149,34 +182,34 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
   }
 
   void _showWaitingDialog() {
-    // 1. Capture the theme to dynamically adjust colors
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    _isWaitingDialogShowing = true; // Mark dialog as open
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
         return Dialog(
-          // 2. WIDEN THE DIALOG: Reduces the default horizontal margins
           insetPadding: const EdgeInsets.symmetric(horizontal: 20),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          // Adapts background color based on Light/Dark mode
           backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
-          child: StreamBuilder<Room?>(
-            // ignore: deprecated_member_use
-            stream: _roomStream(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData || snapshot.data == null) {
+          // The Consumer now is PURELY for UI. Side effects were moved to `_handleRoomUpdate`.
+          child: Consumer(
+            builder: (context, ref, child) {
+              final roomAsync = ref.watch(roomStreamProvider(widget.roomCode));
+              final room = roomAsync.value;
+
+              if (room == null) {
                 return const SizedBox(
                   height: 150,
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              final room = snapshot.data!;
               final connectedPlayers = room.connectedPlayers;
               final profiles = room.playerProfiles;
 
@@ -184,30 +217,34 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
               List<Widget> playerStatusWidgets = [];
 
               for (String deviceId in connectedPlayers) {
+                final List<dynamic> rawGenres;
                 final profile = profiles[deviceId];
                 final String name = profile?.name ?? 'Guest';
-                final String avatar =
-                    profile?.avatar ?? 'assets/images/default-pic-1.webp';
-                final bool isReady = profile?.genres?.isNotEmpty ?? false;
+                final String avatar = profile?.avatar ?? 'assets/images/default-pic-1.webp';
+
+                if (deviceId == widget.playerDeviceId) {
+                  rawGenres = selectedGenres.toList();
+                } else {
+                  rawGenres = profile?.genres ?? [];
+                }
+
+                final bool isReady = rawGenres.isNotEmpty;
 
                 if (isReady) readyCount++;
 
                 String subtitleText = 'Selecting...';
                 if (isReady) {
-                  final List<String> userGenres = profile!.genres!;
-                  subtitleText = userGenres.join(', ');
+                  subtitleText = rawGenres.map((g) => g.toString()).join(', ');
                 }
 
                 playerStatusWidgets.add(
                   Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    // 3. OPTIMIZED LAYOUT: Reduced horizontal padding to give text more room
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      // Adapts inner card color
                       color: isDark
                           ? theme.colorScheme.surfaceContainerHighest
                           : Colors.grey.shade100,
@@ -216,20 +253,16 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          radius: 20, // Slightly smaller avatar
+                          radius: 20,
                           backgroundColor: Colors.grey.shade800,
                           onBackgroundImageError: (exception, stackTrace) {
-                            // Log the error for debugging
                             debugPrint('Failed to load image');
                           },
-                          // THE FIX: Switch between NetworkImage and AssetImage automatically
                           backgroundImage: avatar.startsWith('http')
                               ? NetworkImage(avatar) as ImageProvider
                               : AssetImage(avatar),
                         ),
-                        const SizedBox(
-                          width: 12,
-                        ), // Tighter spacing to maximize text width
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,9 +272,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: isDark
-                                      ? Colors.white
-                                      : Colors.black87, // Adapts text color
+                                  color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -250,14 +281,12 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  // Adapts subtitle text color
                                   color: isReady
                                       ? (isDark
                                             ? Colors.grey.shade400
                                             : Colors.grey.shade600)
                                       : Colors.red.shade400,
-                                  fontSize:
-                                      11.5, // LOWERED text size to fit 3 genres
+                                  fontSize: 11.5,
                                   fontWeight: isReady
                                       ? FontWeight.normal
                                       : FontWeight.bold,
@@ -286,28 +315,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                 );
               }
 
-              // --- TELEPORTATION LOGIC ---
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (_currentRoom?.status == RoomStatus.swiping) {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SwipeDeckScreen(
-                        selectedGenres: selectedGenres,
-                        roomCode: widget.roomCode,
-                        playerDeviceId: widget.playerDeviceId,
-                      ),
-                    ),
-                  );
-                } else if (readyCount == connectedPlayers.length &&
-                    connectedPlayers.isNotEmpty) {
-                  ref
-                      .read(roomManagementServiceProvider)
-                      .updateRoomStatus(widget.roomCode, 'swiping');
-                }
-              });
-
               int waitingFor = connectedPlayers.length - readyCount;
 
               return Padding(
@@ -321,9 +328,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 22,
-                        color: isDark
-                            ? Colors.white
-                            : Colors.black87, // Adapts text
+                        color: isDark ? Colors.white : Colors.black87,
                         height: 1.2,
                       ),
                     ),
@@ -334,23 +339,19 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                       style: TextStyle(
                         color: isDark
                             ? Colors.grey.shade400
-                            : Colors.grey.shade600, // Adapts text
+                            : Colors.grey.shade600,
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 24),
-
                     ...playerStatusWidgets,
-
                     const SizedBox(height: 16),
-
                     SizedBox(
                       width: double.infinity,
                       height: 55,
                       child: TextButton(
                         style: TextButton.styleFrom(
-                          // Adapts button color
                           backgroundColor: isDark
                               ? theme.colorScheme.surfaceContainerHighest
                               : Colors.grey.shade200,
@@ -366,12 +367,13 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                 widget.playerDeviceId,
                                 [],
                               );
-                          if (context.mounted) Navigator.pop(context);
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext); // Use proper context here
+                          }
                         },
                         child: Text(
                           'Cancel Selection',
                           style: TextStyle(
-                            // Adapts button text color
                             color: isDark
                                 ? Colors.white70
                                 : Colors.grey.shade700,
@@ -388,7 +390,10 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
           ),
         );
       },
-    );
+    ).then((_) {
+      // Revert track state if dismissed manually
+      _isWaitingDialogShowing = false;
+    });
   }
 
   @override
@@ -396,13 +401,11 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
     final theme = Theme.of(context);
     final isLightMode = theme.brightness == Brightness.light;
 
-    if (!_listenerSet) {
-      ref.listen<AsyncValue<Room?>>(
-        roomStreamProvider(widget.roomCode),
-        _handleRoomUpdate,
-      );
-      _listenerSet = true;
-    }
+    // This listener safely drives database and navigation actions outside the build scope.
+    ref.listen<AsyncValue<Room?>>(
+      roomStreamProvider(widget.roomCode),
+      _handleRoomUpdate,
+    );
 
     return PopScope(
       canPop: false,
@@ -527,11 +530,14 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                       onPressed: selectedGenres.isEmpty
                           ? null
                           : () async {
-                              // 1. Fetch the room data to see how many people are playing
-                              final room = ref.read(roomStreamProvider(widget.roomCode)).value ?? _currentRoom;
-                              final connectedPlayers = room?.connectedPlayers ?? [];
+                              final room =
+                                  ref
+                                      .read(roomStreamProvider(widget.roomCode))
+                                      .value ??
+                                  _currentRoom;
+                              final connectedPlayers =
+                                  room?.connectedPlayers ?? [];
 
-                              // 2. Save their selected genres to the database
                               await ref
                                   .read(roomManagementServiceProvider)
                                   .updatePlayerGenres(
@@ -540,9 +546,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                     selectedGenres.toList(),
                                   );
 
-                              // 3. THE FIX: Are they playing solo? Skip the dialog entirely!
                               if (connectedPlayers.length <= 1) {
-                                // Tell the database we are moving to the swiping phase
                                 await ref
                                     .read(roomManagementServiceProvider)
                                     .updateRoomStatus(
@@ -550,8 +554,8 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                       'swiping',
                                     );
 
-                                // Instantly teleport the solo player
                                 if (context.mounted) {
+                                  _navigatedAway = true; // Block listener duplication 
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
@@ -564,7 +568,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                   );
                                 }
                               } else {
-                                // 4. Playing with friends? Show the normal waiting dialog!
                                 _showWaitingDialog();
                               }
                             },
@@ -634,8 +637,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                     ).createShader(rect);
                   },
                   blendMode: BlendMode.dstIn,
-
-                  // CHANGE HERE: Update Image.network to Image.asset
                   child: Image.asset(
                     genre['image']!,
                     fit: BoxFit.cover,
@@ -645,16 +646,13 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                   ),
                 ),
               ),
-
-              // NEW CODE: Wrapping the Padding in an Align widget
               Align(
                 alignment: Alignment.center,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment
-                        .center, // Enforces vertical centering
+                    crossAxisAlignment: CrossAxisAlignment.center, 
                     children: [
                       Text(
                         genre['name']!,

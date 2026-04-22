@@ -156,8 +156,9 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                                         // 2. Create the room in the database
                                         final deviceId = await deviceIdService
                                             .getDeviceId();
-                                        String newRoomCode = await roomManagementService
-                                            .createRoom(deviceId);
+                                        String newRoomCode =
+                                            await roomManagementService
+                                                .createRoom(deviceId);
 
                                         // 3. Navigate to the Waiting Room
                                         if (context.mounted) {
@@ -182,7 +183,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                                         }
                                       } catch (e) {
                                         // If the database fails (e.g., no internet), turn the button back on
-                                         debugPrint("Error creating room");
+                                        debugPrint("Error creating room");
                                         if (mounted) {
                                           setState(
                                             () => _isCreatingRoom = false,
