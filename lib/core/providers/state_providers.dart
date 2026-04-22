@@ -3,7 +3,7 @@ import 'package:veto/core/domain/entities/room.dart';
 import 'package:veto/core/domain/entities/vote.dart';
 import 'package:veto/core/providers/repositories.dart';
 
-final roomStreamProvider = StreamProvider.autoDispose.family<Room?, String>((
+final roomStreamProvider = StreamProvider.family<Room?, String>((
   ref,
   roomCode,
 ) {

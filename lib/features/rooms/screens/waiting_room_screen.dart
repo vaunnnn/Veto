@@ -31,7 +31,6 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
   // This is our background listener that watches for kicks and teleports
   bool _isHost = false;
   bool _navigatedAway = false;
-  bool _listenerSet = false;
 
   @override
   void initState() {
@@ -1151,13 +1150,10 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
         ? const Color(0xFFF8F9FA)
         : colorScheme.surface;
 
-    if (!_listenerSet) {
-      ref.listen<AsyncValue<Room?>>(
-        roomStreamProvider(widget.roomCode),
-        _handleRoomUpdate,
-      );
-      _listenerSet = true;
-    }
+    ref.listen<AsyncValue<Room?>>(
+      roomStreamProvider(widget.roomCode),
+      _handleRoomUpdate,
+    );
 
     // ignore: deprecated_member_use
     return WillPopScope(

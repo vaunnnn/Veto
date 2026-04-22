@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:veto/core/themes/app_colors.dart'; 
+import 'package:veto/core/themes/app_colors.dart';
 import 'package:veto/core/providers/providers.dart';
 import 'package:veto/core/domain/entities/room.dart';
 import 'package:veto/features/rooms/screens/landing_screen.dart';
@@ -33,15 +33,21 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
     super.initState();
   }
 
-  void _handleRoomUpdate(AsyncValue<Room?>? previous, AsyncValue<Room?> next) {
+  Future<void> _handleRoomUpdate(
+    AsyncValue<Room?>? previous,
+    AsyncValue<Room?> next,
+  ) async {
     next.when(
-      data: (room) {
+      data: (room) async {
         if (room == null) {
           // Room deleted, navigate to landing screen
           if (!_navigatedAway && mounted) {
             _navigatedAway = true;
             if (_isWaitingDialogShowing) {
-              Navigator.of(context, rootNavigator: true).pop(); // Safely clear dialog
+              Navigator.of(
+                context,
+                rootNavigator: true,
+              ).pop(); // Safely clear dialog
             }
             Navigator.pushAndRemoveUntil(
               context,
@@ -68,7 +74,9 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
         if (_navigatedAway) return;
 
         // 1. UPDATE STATUS LOGIC: Only the host should push the "swiping" status to prevent race conditions.
-        if (isHost && room.status != RoomStatus.swiping && room.connectedPlayers.isNotEmpty) {
+        if (isHost &&
+            room.status != RoomStatus.swiping &&
+            room.connectedPlayers.isNotEmpty) {
           bool allReady = true;
           for (String id in room.connectedPlayers) {
             final profile = room.playerProfiles[id];
@@ -79,18 +87,27 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
           }
 
           if (allReady) {
-            ref.read(roomManagementServiceProvider).updateRoomStatus(widget.roomCode, 'swiping');
+            try {
+              await ref
+                  .read(roomManagementServiceProvider)
+                  .updateRoomStatus(widget.roomCode, 'swiping');
+            } catch (e) {
+              debugPrint('Failed to update room status to swiping: $e');
+            }
           }
         }
 
         // 2. TELEPORTATION LOGIC: If the room is now 'swiping', teleport everyone cleanly.
         if (room.status == RoomStatus.swiping && mounted) {
           _navigatedAway = true;
-          
+
           if (_isWaitingDialogShowing) {
-            Navigator.of(context, rootNavigator: true).pop(); // Pop the dialog using the root navigator
+            Navigator.of(
+              context,
+              rootNavigator: true,
+            ).pop(); // Pop the dialog using the root navigator
           }
-          
+
           // Push the new screen using the main State context
           Navigator.pushReplacement(
             context,
@@ -220,7 +237,8 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                 final List<dynamic> rawGenres;
                 final profile = profiles[deviceId];
                 final String name = profile?.name ?? 'Guest';
-                final String avatar = profile?.avatar ?? 'assets/images/default-pic-1.webp';
+                final String avatar =
+                    profile?.avatar ?? 'assets/images/default-pic-1.webp';
 
                 if (deviceId == widget.playerDeviceId) {
                   rawGenres = selectedGenres.toList();
@@ -368,7 +386,9 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                 [],
                               );
                           if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext); // Use proper context here
+                            Navigator.pop(
+                              dialogContext,
+                            ); // Use proper context here
                           }
                         },
                         child: Text(
@@ -400,6 +420,9 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLightMode = theme.brightness == Brightness.light;
+
+    // Keep the provider alive even during dialog overlays
+    ref.watch(roomStreamProvider(widget.roomCode));
 
     // This listener safely drives database and navigation actions outside the build scope.
     ref.listen<AsyncValue<Room?>>(
@@ -555,7 +578,8 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                     );
 
                                 if (context.mounted) {
-                                  _navigatedAway = true; // Block listener duplication 
+                                  _navigatedAway =
+                                      true; // Block listener duplication
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
@@ -652,7 +676,7 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center, 
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
                         genre['name']!,
