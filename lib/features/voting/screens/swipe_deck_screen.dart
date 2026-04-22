@@ -693,31 +693,38 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
       },
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
-          centerTitle: true,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
-          ),
-        ),
-        body: isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              )
-            : movies.isEmpty
-            ? _buildEmptyState() // <-- THE FIX: Calls our new premium UI
-            : Column(
-                children: [
-                  // 1. Reduced top spacing to lift the card up slightly
-                  const SizedBox(height: 8),
+        body: SafeArea(
+          child: isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : movies.isEmpty
+              ? SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Center(
+                          child: Image.asset('assets/images/veto-logo.webp', height: 32),
+                        ),
+                      ),
+                      _buildEmptyState(),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Center(
+                        child: Image.asset('assets/images/veto-logo.webp', height: 32),
+                      ),
+                    ),
+                    // 1. Reduced top spacing to lift the card up slightly
+                    const SizedBox(height: 8),
 
-                  Expanded(
-                    child: CardSwiper(
+                    Expanded(
+                      child: CardSwiper(
                       controller: controller,
                       cardsCount: movies.length,
                       onSwipe: _onSwipe,
@@ -783,6 +790,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                   const SizedBox(height: 32),
                 ],
               ),
+        ),
       ),
     );
   }

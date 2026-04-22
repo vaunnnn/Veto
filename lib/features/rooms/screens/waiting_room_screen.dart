@@ -1164,11 +1164,6 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           automaticallyImplyLeading: false,
-          centerTitle: true,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
-          ),
           // NEW: The Host Settings Icon
           actions: [
             if (_isHost)
@@ -1218,6 +1213,10 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 16),
+                          Center(
+                            child: Image.asset('assets/images/veto-logo.webp', height: 32),
+                          ),
+                          const SizedBox(height: 24),
 
                           // MOVED BACK: PEOPLE WAITING COUNT IS ON TOP
                           Row(

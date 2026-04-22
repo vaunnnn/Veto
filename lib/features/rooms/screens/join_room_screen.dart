@@ -129,12 +129,6 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
           icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
-        centerTitle: true, // Forces the Row to center
-        title: Row(
-          mainAxisSize:
-              MainAxisSize.min, // Shrink-wraps the icon and text together
-          children: [Image.asset('assets/images/veto-logo.webp', height: 32)],
-        ),
       ),
       body: Stack(
         children: [
@@ -166,6 +160,10 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: Column(
                       children: [
+                        const SizedBox(height: 16),
+                        Center(
+                          child: Image.asset('assets/images/veto-logo.webp', height: 32),
+                        ),
                         // 1. INCREASED SPACING: Lowers the content into a more comfortable "thumb zone"
                         const SizedBox(height: 50),
 
