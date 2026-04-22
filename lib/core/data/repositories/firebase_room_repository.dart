@@ -32,6 +32,29 @@ class FirebaseRoomRepository implements RoomRepository {
     return 'VETO-$code';
   }
 
+  Future<void> _deleteVotesSubcollection(String roomCode) async {
+    try {
+      final votesRef = _firestore
+          .collection('rooms')
+          .doc(roomCode)
+          .collection('votes');
+      
+      final snapshot = await votesRef.get();
+      final batch = _firestore.batch();
+      
+      for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      if (snapshot.docs.isNotEmpty) {
+        await batch.commit();
+      }
+    } catch (e) {
+      debugPrint("Failed to delete votes subcollection for room $roomCode: $e");
+      // Silently fail - room deletion should proceed anyway
+    }
+  }
+
   @override
   Future<String> createRoom(String hostDeviceId) async {
     final String roomCode = _generateRoomCode();
@@ -168,6 +191,7 @@ class FirebaseRoomRepository implements RoomRepository {
       final data = snapshot.data() as Map<String, dynamic>;
       final connectedPlayers = List.from(data['connectedPlayers'] ?? []);
       if (connectedPlayers.isEmpty) {
+        await _deleteVotesSubcollection(roomCode);
         await roomRef.delete();
       }
     }
@@ -176,6 +200,7 @@ class FirebaseRoomRepository implements RoomRepository {
   @override
   Future<void> deleteRoom(String roomCode) async {
     _validateRoomCode(roomCode);
+    await _deleteVotesSubcollection(roomCode);
     await _firestore.collection('rooms').doc(roomCode).delete();
   }
 

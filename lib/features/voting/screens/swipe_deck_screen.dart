@@ -9,6 +9,7 @@ import 'dart:ui';
 import 'dart:async';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:veto/core/data/repositories/firebase_room_repository.dart';
 import 'package:veto/features/rooms/screens/landing_screen.dart';
 
 class SwipeDeckScreen extends StatefulWidget {
@@ -40,6 +41,7 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   int currentPage = 1;
   bool _isMatchOverlayOpen = false;
   int _lastKeepSwipingTrigger = 0;
+  bool _isLeaving = false;
 
   final Map<String, String> tmdbGenreIds = {
     'Action': '28',
@@ -533,33 +535,39 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
                         // --------------------------------
 
                         // --- EXISTING END SESSION BUTTON ---
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            onPressed: _leaveRoom,
-                            icon: const Icon(
-                              Icons.home,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            label: const Text(
-                              "END SESSION & GO HOME",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                          ),
-                        ),
+                         SizedBox(
+                           width: double.infinity,
+                           height: 56,
+                           child: ElevatedButton.icon(
+                             style: ElevatedButton.styleFrom(
+                               backgroundColor: _isLeaving
+                                    ? AppColors.primary.withValues(alpha: 0.5)
+                                   : AppColors.primary,
+                               shape: RoundedRectangleBorder(
+                                 borderRadius: BorderRadius.circular(30),
+                               ),
+                             ),
+                             onPressed: _isLeaving ? null : _leaveRoom,
+                             icon: Icon(
+                               Icons.home,
+                               color: _isLeaving
+                        ? Colors.white.withValues(alpha: 0.7)
+                                   : Colors.white,
+                               size: 20,
+                             ),
+                             label: Text(
+                               _isLeaving ? "LEAVING..." : "END SESSION & GO HOME",
+                               style: TextStyle(
+                                 color: _isLeaving
+                                     ? Colors.white.withValues(alpha: 0.7)
+                                     : Colors.white,
+                                 fontSize: 15,
+                                 fontWeight: FontWeight.bold,
+                                 letterSpacing: 1.0,
+                               ),
+                             ),
+                           ),
+                         ),
                       ],
                     ),
                   ),
@@ -573,31 +581,56 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
   }
 
   Future<void> _leaveRoom() async {
+    if (_isLeaving) return;
+    
+    setState(() {
+      _isLeaving = true;
+    });
+    
     _matchSubscription?.cancel();
     _roomSubscription?.cancel();
 
-    if (_isHost) {
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .delete();
-    } else {
-      await FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomCode)
-          .update({
-            'connectedPlayers': FieldValue.arrayRemove([widget.playerDeviceId]),
-            'playerProfiles.${widget.playerDeviceId}': FieldValue.delete(),
-          });
-    }
+    try {
+      final repository = FirebaseRoomRepository();
+      
+      if (_isHost) {
+        await repository.deleteRoom(widget.roomCode);
+      } else {
+        await repository.leaveRoom(widget.roomCode, widget.playerDeviceId);
+      }
 
-    if (mounted) {
-      _navigatedAway = true;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LandingScreen()),
-        (route) => false,
-      );
+      if (mounted) {
+        _navigatedAway = true;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LandingScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint("Error leaving room: $e");
+      if (mounted) {
+        setState(() {
+          _isLeaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Failed to leave room. Please try again.',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -837,30 +870,38 @@ class _SwipeDeckScreenState extends State<SwipeDeckScreen> {
             SizedBox(
               width: double.infinity,
               height: 56,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: _leaveRoom,
-                icon: Icon(
-                  _isHost ? Icons.refresh_rounded : Icons.exit_to_app_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                label: Text(
-                  _isHost ? "END SESSION & RESTART" : "LEAVE ROOM",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ),
+               child: ElevatedButton.icon(
+                 style: ElevatedButton.styleFrom(
+                   backgroundColor: _isLeaving
+                        ? AppColors.primary.withValues(alpha: 0.5)
+                       : AppColors.primary,
+                   shape: RoundedRectangleBorder(
+                     borderRadius: BorderRadius.circular(30),
+                   ),
+                   elevation: 0,
+                 ),
+                 onPressed: _isLeaving ? null : _leaveRoom,
+                 icon: Icon(
+                   _isHost ? Icons.refresh_rounded : Icons.exit_to_app_rounded,
+                    color: _isLeaving
+                        ? Colors.white.withValues(alpha: 0.7)
+                        : Colors.white,
+                   size: 20,
+                 ),
+                 label: Text(
+                   _isLeaving
+                       ? "LEAVING..."
+                       : _isHost ? "END SESSION & RESTART" : "LEAVE ROOM",
+                   style: TextStyle(
+                     color: _isLeaving
+                          ? Colors.white.withValues(alpha: 0.7)
+                         : Colors.white,
+                     fontSize: 14,
+                     fontWeight: FontWeight.w900,
+                     letterSpacing: 1.0,
+                   ),
+                 ),
+               ),
             ),
           ],
         ),
