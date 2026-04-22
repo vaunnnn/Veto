@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Make sure to import your AppTheme! Adjust the path if necessary.
 import 'package:veto/core/themes/app_theme.dart';
@@ -10,6 +11,12 @@ import 'firebase_options.dart';
 Future<void> main() async {
   // 1. MUST be first
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Lock orientation to portrait mode
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   // 2. Load env variables - try .env.local first (secure), fall back to .env
   try {
