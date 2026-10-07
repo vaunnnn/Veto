@@ -547,7 +547,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                   },
                 ),
               ),
-
               SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
@@ -565,7 +564,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                   _currentRoom;
                               final connectedPlayers =
                                   room?.connectedPlayers ?? [];
-
                               await ref
                                   .read(roomManagementServiceProvider)
                                   .updatePlayerGenres(
@@ -573,7 +571,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                     widget.playerDeviceId,
                                     selectedGenres.toList(),
                                   );
-
                               if (connectedPlayers.length <= 1) {
                                 await ref
                                     .read(roomManagementServiceProvider)
@@ -581,7 +578,6 @@ class _GenreSelectionScreenState extends ConsumerState<GenreSelectionScreen> {
                                       widget.roomCode,
                                       'swiping',
                                     );
-
                                 if (context.mounted && !_navigatedAway) {
                                   _navigatedAway =
                                       true; // Block listener duplication
